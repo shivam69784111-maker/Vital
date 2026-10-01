@@ -1,0 +1,30 @@
+export default async (req) => {
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const { system, messages } = await req.json();
+
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 700,
+      temperature: 0.8,
+      system,
+      messages: (messages || []).slice(-16),
+    }),
+  });
+
+  return new Response(await r.text(), {
+    status: r.status,
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
+export const config = { path: "/api/kabir" };
