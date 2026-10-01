@@ -11,49 +11,54 @@ export default async (req) => {
   }));
   while (contents.length && contents[0].role !== "user") contents.shift();
 
-  const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-  let lastStatus = 500;
-  let lastBody = "";
+  const reply = (text) =>
+    new Response(JSON.stringify({ content: [{ type: "text", text }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+  ];
+  const errors = [];
 
   for (const model of models) {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system || "" }] },
-          contents,
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 2048,
-            thinkingConfig: { thinkingBudget: 0 },
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": process.env.GEMINI_API_KEY,
           },
-        }),
-      }
-    );
-
-    if (r.ok) {
-      const data = await r.json();
-      const text = (data.candidates?.[0]?.content?.parts || [])
-        .map((p) => p.text || "")
-        .join("");
-      return new Response(
-        JSON.stringify({ content: [{ type: "text", text }] }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system || "" }] },
+            contents,
+            generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
+          }),
+        }
       );
+      const raw = await r.text();
+      if (r.ok) {
+        const data = JSON.parse(raw);
+        const cand = data.candidates && data.candidates[0];
+        const text = ((cand && cand.content && cand.content.parts) || [])
+          .map((p) => p.text || "")
+          .join("");
+        if (text) return reply(text);
+        errors.push(model + ": empty reply " + ((cand && cand.finishReason) || ""));
+      } else {
+        errors.push(model + ": " + r.status + " " + raw.slice(0, 200));
+      }
+    } catch (e) {
+      errors.push(model + ": " + e.message);
     }
-    lastStatus = r.status;
-    lastBody = await r.text();
   }
 
-  return new Response(lastBody || "error", {
-    status: lastStatus,
-    headers: { "Content-Type": "application/json" },
-  });
+  return reply("Kabir error -> " + errors.join(" | "));
 };
 
 export const config = { path: "/api/kabir" };
