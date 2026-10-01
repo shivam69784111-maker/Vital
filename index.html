@@ -1,0 +1,2808 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VITAL — Personal Health OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#040611; --surface:#0D1122b3; --surface-solid:#0E1224; --surface2:#141A30cc;
+  --line:rgba(255,255,255,0.08); --line-strong:rgba(255,255,255,0.18);
+  --text:#F2F4FC; --muted:#8D96B5; --faint:#4B5372;
+  --c1:#39E8FF; --c1-soft:rgba(57,232,255,0.13);
+  --c2:#B084FF; --c2-soft:rgba(176,132,255,0.13);
+  --c3:#FF6FD8; --c3-soft:rgba(255,111,216,0.13);
+  --c4:#FFC15E; --c4-soft:rgba(255,193,94,0.13);
+  --danger:#FF5577; --danger-soft:rgba(255,85,119,0.14);
+  --success:#33E39A; --success-soft:rgba(51,227,154,0.14);
+  --shadow:0 24px 70px rgba(0,0,0,0.5);
+  --glow-shadow:0 0 0 1px var(--line), 0 20px 60px -12px rgba(57,232,255,0.18);
+  --radius:18px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html[data-theme="light"]{
+  --bg:#F0F3FA; --surface:#FFFFFFcc; --surface-solid:#FFFFFF; --surface2:#EAEEF7cc;
+  --line:rgba(10,20,45,0.08); --line-strong:rgba(10,20,45,0.16);
+  --text:#0E1424; --muted:#5C6580; --faint:#98A1B8;
+  --c1:#0AA8C4; --c1-soft:rgba(10,168,196,0.09);
+  --c2:#7C4FE0; --c2-soft:rgba(124,79,224,0.09);
+  --c3:#D63FA8; --c3-soft:rgba(214,63,168,0.09);
+  --c4:#D98A1F; --c4-soft:rgba(217,138,31,0.10);
+  --danger:#E23A5C; --danger-soft:rgba(226,58,92,0.10);
+  --success:#189A6C; --success-soft:rgba(24,154,108,0.10);
+  --shadow:0 20px 50px rgba(20,30,60,0.09);
+  --glow-shadow:0 0 0 1px var(--line), 0 20px 50px -14px rgba(10,168,196,0.14);
+}
+.mesh-bg{position:fixed; inset:-10%; z-index:0; pointer-events:none; filter:blur(70px); opacity:0.85; transition:opacity 0.5s;}
+html[data-theme="light"] .mesh-bg{opacity:0.5;}
+.mesh-blob{position:absolute; border-radius:50%; mix-blend-mode:screen;}
+html[data-theme="light"] .mesh-blob{mix-blend-mode:multiply;}
+.mesh-1{width:50vw; height:50vw; top:-12%; left:-10%; background:radial-gradient(circle, var(--c1) 0%, transparent 68%); animation:meshFloat1 22s ease-in-out infinite;}
+.mesh-2{width:44vw; height:44vw; top:15%; right:-12%; background:radial-gradient(circle, var(--c2) 0%, transparent 68%); animation:meshFloat2 26s ease-in-out infinite;}
+.mesh-3{width:40vw; height:40vw; bottom:-16%; left:20%; background:radial-gradient(circle, var(--c3) 0%, transparent 68%); animation:meshFloat3 30s ease-in-out infinite;}
+.mesh-4{width:30vw; height:30vw; bottom:10%; right:15%; background:radial-gradient(circle, var(--c4) 0%, transparent 68%); animation:meshFloat2 34s ease-in-out infinite reverse; opacity:0.6;}
+@keyframes meshFloat1{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(6vw,8vh) scale(1.15);}}
+@keyframes meshFloat2{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-7vw,5vh) scale(0.9);}}
+@keyframes meshFloat3{0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(4vw,-6vh) scale(1.1);}}
+.grain{position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow-x:hidden; transition:background 0.4s ease, color 0.4s ease;}
+.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+::selection{background:var(--c1); color:#05070D;}
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{outline:2px solid var(--c1); outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}}
+
+#bgCanvas{position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:0.55;}
+
+/* ===== APP SHELL ===== */
+.app{position:relative; z-index:1; display:flex; min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{
+  width:260px; flex-shrink:0; height:100vh; position:sticky; top:0;
+  border-right:1px solid var(--line);
+  background:var(--surface);
+  backdrop-filter:blur(16px);
+  display:flex; flex-direction:column;
+  padding:26px 18px;
+  z-index:20;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:0 10px 26px; margin-bottom:10px; border-bottom:1px solid var(--line);}
+.brand-dot{width:11px; height:11px; border-radius:50%; background:var(--c1); box-shadow:0 0 14px var(--c1); animation:beat 1.2s ease-in-out infinite;}
+@keyframes beat{0%,100%{transform:scale(1);} 40%{transform:scale(1.4);}}
+.brand-name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.15rem; letter-spacing:0.02em;}
+.brand-sub{font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--faint); letter-spacing:0.14em; margin-left:auto;}
+
+.navlist{list-style:none; display:flex; flex-direction:column; gap:3px; margin-top:16px; flex:1; overflow-y:auto; position:relative;}
+.nav-pill{position:absolute; left:0; width:100%; height:40px; border-radius:10px; background:linear-gradient(90deg, var(--c1-soft), var(--c2-soft) 80%, transparent); border:1px solid var(--line-strong); box-shadow:0 0 24px -4px var(--c1-soft), inset 0 0 0 1px rgba(255,255,255,0.02); pointer-events:none; z-index:0; transition:transform 0.42s var(--ease), opacity 0.3s; opacity:0;}
+.navitem{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 12px; border-radius:10px; cursor:pointer;
+  color:var(--muted); font-size:0.89rem; font-weight:500;
+  position:relative; z-index:1; transition:color 0.25s;
+}
+.navitem svg{width:18px; height:18px; flex-shrink:0; opacity:0.85; transition:transform 0.3s var(--ease);}
+.navitem:hover svg{transform:scale(1.12);}
+.navitem:hover{color:var(--text);}
+.navitem.active{color:var(--text);}
+.navitem.active::before{content:''; position:absolute; left:-18px; top:50%; transform:translateY(-50%); width:3px; height:60%; background:var(--c1); border-radius:4px; box-shadow:0 0 10px var(--c1);}
+
+.sidebar-foot{padding-top:14px; border-top:1px solid var(--line); margin-top:10px;}
+.theme-toggle{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface2); border:1px solid var(--line); border-radius:100px;
+  padding:6px; cursor:pointer;
+}
+.theme-toggle .track{flex:1; display:flex; align-items:center; justify-content:space-between; padding:0 10px; font-size:0.72rem; color:var(--muted);}
+.theme-thumb{
+  width:34px; height:34px; border-radius:50%;
+  background:linear-gradient(135deg,var(--c1),var(--c2));
+  display:flex; align-items:center; justify-content:center;
+  transition:transform 0.4s cubic-bezier(.5,1.6,.4,1);
+  box-shadow:0 0 16px var(--c1-soft);
+}
+.theme-thumb svg{width:16px; height:16px; color:#05070D;}
+html[data-theme="light"] .theme-thumb{transform:rotate(180deg);}
+
+/* MAIN */
+.main{flex:1; min-width:0; padding:34px 42px 90px; position:relative;}
+.topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:34px; flex-wrap:wrap; gap:14px;}
+.topbar h1{font-family:'Space Grotesk',sans-serif; font-size:1.9rem; font-weight:700; letter-spacing:-0.01em;}
+.topbar .sub{color:var(--muted); font-size:0.92rem; margin-top:4px;}
+.pulse-badge{
+  display:flex; align-items:center; gap:8px;
+  font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--c1);
+  background:var(--c1-soft); border:1px solid rgba(79,242,232,0.25);
+  padding:8px 14px; border-radius:100px; letter-spacing:0.05em;
+}
+.pulse-badge .d{width:6px; height:6px; border-radius:50%; background:var(--c1); animation:beat 1.2s ease-in-out infinite;}
+
+.view{display:none;}
+.view.active{display:block; animation:viewIn 0.55s cubic-bezier(.16,1,.3,1);}
+@keyframes viewIn{from{opacity:0; transform:translateY(16px) scale(0.99);} to{opacity:1; transform:translateY(0) scale(1);}}
+
+/* CARD SYSTEM */
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:28px; backdrop-filter:blur(18px);
+  transition:border-color 0.35s var(--ease), transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+  position:relative; overflow:hidden;
+  box-shadow:var(--glow-shadow);
+}
+.card::before{
+  content:''; position:absolute; inset:0; border-radius:var(--radius); pointer-events:none;
+  background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%), rgba(57,232,255,0.09), transparent 60%);
+  opacity:0; transition:opacity 0.4s;
+}
+.card:hover::before{opacity:1;}
+.card:hover{border-color:var(--line-strong); box-shadow:var(--shadow); transform:translateY(-3px);}
+.card::after{content:''; position:absolute; top:-1px; left:24px; right:24px; height:1px; background:linear-gradient(90deg,transparent,var(--c1),var(--c2),transparent); opacity:0; transition:opacity 0.4s;}
+.card:hover::after{opacity:0.7;}
+.card-tag{font-family:'JetBrains Mono',monospace; font-size:0.66rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--faint); margin-bottom:10px; display:block;}
+.card-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.08rem; margin-bottom:4px;}
+
+.grid{display:grid; gap:22px;}
+.grid-2{grid-template-columns:repeat(2,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:720px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} .main{padding:82px 18px 80px;} .sidebar{position:fixed; left:0; transform:translateX(-100%); transition:transform 0.3s; box-shadow:0 0 40px rgba(0,0,0,0.5);} .sidebar.open{transform:translateX(0);} .menu-btn{display:flex !important;}}
+.view > .topbar + .banner, .view > .topbar + div > .banner{margin-top:-4px;}
+.view-block{margin-bottom:30px;}
+.view-block:last-child{margin-bottom:0;}
+
+.reveal{opacity:0; transform:translateY(24px) scale(0.985); filter:blur(6px); transition:opacity 0.75s var(--ease), transform 0.75s var(--ease), filter 0.75s var(--ease);}
+.reveal.in{opacity:1; transform:translateY(0) scale(1); filter:blur(0);}
+.stagger .reveal:nth-child(1){transition-delay:0s;} .stagger .reveal:nth-child(2){transition-delay:0.08s;}
+.stagger .reveal:nth-child(3){transition-delay:0.16s;} .stagger .reveal:nth-child(4){transition-delay:0.24s;}
+.stagger .reveal:nth-child(5){transition-delay:0.32s;} .stagger .reveal:nth-child(6){transition-delay:0.4s;}
+
+/* STAT MINI */
+.stat-mini .num{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:2.3rem; letter-spacing:-0.01em; background:linear-gradient(90deg,var(--text),var(--c1)); -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 18px var(--c1-soft));}
+.stat-mini.alt .num{background:linear-gradient(90deg,var(--text),var(--c2)); -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 18px var(--c2-soft));}
+.stat-mini .lab{color:var(--muted); font-size:0.82rem; margin-top:6px;}
+.stat-mini .bar-track{height:6px; background:var(--surface2); border-radius:100px; margin-top:16px; overflow:hidden;}
+.stat-mini .bar-fill{height:100%; border-radius:100px; width:0%; transition:width 1.3s cubic-bezier(.16,1,.3,1); box-shadow:0 0 10px currentColor;}
+
+/* ===== PREMIUM SPEEDOMETER GAUGES (Health Profile targets) ===== */
+.gauge-card{position:relative; background:var(--surface2); border:1px solid var(--line); border-radius:18px; padding:18px 12px 18px; text-align:center; overflow:hidden; transition:transform 0.3s var(--ease), border-color 0.3s;}
+.gauge-card:hover{transform:translateY(-4px); border-color:var(--line-strong);}
+.gauge-card::before{content:''; position:absolute; top:6px; left:50%; transform:translateX(-50%); width:160px; height:160px; border-radius:50%; background:radial-gradient(circle at 50% 38%, var(--surface) 0%, transparent 72%); opacity:0.7; pointer-events:none; z-index:0;}
+.gauge-svg{position:relative; z-index:1; width:100%; max-width:150px; height:auto; overflow:visible; margin:0 auto; display:block;}
+.gauge-track{fill:none; stroke-width:11; stroke-linecap:round;}
+.gauge-fill{fill:none; stroke-width:11; stroke-linecap:round; filter:drop-shadow(0 0 8px currentColor);}
+.gauge-tick{stroke:var(--line-strong); stroke-width:1.6; stroke-linecap:round;}
+.gauge-needle-wrap{transform-origin:100px 100px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.45));}
+.gauge-needle{fill:var(--text); opacity:0.95;}
+.gauge-hub-ring{fill:var(--surface2); stroke:var(--line-strong); stroke-width:2;}
+.gauge-hub{fill:var(--text);}
+.gauge-hub-shine{fill:rgba(255,255,255,0.55);}
+.gauge-value{position:relative; z-index:1; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.55rem; margin-top:-8px; background:linear-gradient(90deg,var(--text),currentColor); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+.gauge-value .unit{font-size:0.62rem; font-weight:500; -webkit-text-fill-color:var(--muted); margin-left:2px;}
+.gauge-label{position:relative; z-index:1; color:var(--muted); font-size:0.78rem; margin-top:3px;}
+.gauge-sub{position:relative; z-index:1; font-family:'JetBrains Mono',monospace; font-size:0.64rem; letter-spacing:0.06em; text-transform:uppercase; margin-top:7px; opacity:0.95; transition:color 0.4s var(--ease);}
+.gauge-range{position:relative; z-index:1; display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--faint); margin-top:-2px; padding:0 6px;}
+.gauge-card.pulse{animation:gaugePulse 1.6s var(--ease);}
+@keyframes gaugePulse{0%{box-shadow:0 0 0 0 var(--c1-soft);} 50%{box-shadow:0 0 0 10px transparent;} 100%{box-shadow:0 0 0 0 transparent;}}
+
+
+/* FORM ELEMENTS */
+.field{margin-bottom:18px;}
+.field label{display:block; font-family:'JetBrains Mono',monospace; font-size:0.68rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;}
+.field input, .field select, .field textarea{
+  width:100%; background:var(--surface2); border:1px solid var(--line); color:var(--text);
+  padding:12px 14px; border-radius:9px; font-family:'Inter',sans-serif; font-size:0.96rem;
+  transition:border-color 0.2s, box-shadow 0.2s; appearance:none;
+}
+.field textarea{resize:vertical; min-height:70px; font-family:'Inter',sans-serif;}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--c1); box-shadow:0 0 0 3px var(--c1-soft); outline:none;}
+.field-row{display:flex; gap:14px; flex-wrap:wrap;}
+.field-row .field{flex:1; min-width:150px;}
+.chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{padding:9px 16px; border-radius:100px; border:1px solid var(--line); background:var(--surface2); color:var(--muted); font-size:0.85rem; cursor:pointer; transition:all 0.2s;}
+.chip.active{border-color:var(--c1); color:var(--text); background:var(--c1-soft); box-shadow:0 0 0 1px var(--c1) inset;}
+.slider-wrap{display:flex; align-items:center; gap:14px;}
+input[type=range]{-webkit-appearance:none; flex:1; height:5px; border-radius:100px; background:var(--surface2); outline:none; transition:background 0.3s;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--thumb-color, var(--c1)); box-shadow:0 0 10px var(--thumb-color, var(--c1)); cursor:pointer; transition:background 0.3s, box-shadow 0.3s;}
+input[type=range]::-moz-range-thumb{width:18px; height:18px; border:none; border-radius:50%; background:var(--thumb-color, var(--c1)); box-shadow:0 0 10px var(--thumb-color, var(--c1)); cursor:pointer;}
+input[type=range]::-moz-range-track{background:transparent;}
+.slider-val{font-family:'JetBrains Mono',monospace; font-weight:600; width:26px; text-align:center; color:var(--c1); transition:color 0.3s;}
+
+/* ===== PREMIUM FLOATING FIELDS (Health Profile) ===== */
+.field-premium label{transition:color 0.35s var(--ease), letter-spacing 0.35s var(--ease);}
+.field-premium:focus-within label{color:var(--c1); letter-spacing:0.14em;}
+.input-shell{position:relative; border-radius:12px;}
+.input-shell::after{
+  content:''; position:absolute; left:10%; right:10%; bottom:-4px; height:2px; border-radius:2px; z-index:2;
+  background:linear-gradient(90deg, transparent, var(--c1), var(--c2), transparent);
+  opacity:0; transition:opacity 0.3s var(--ease); pointer-events:none;
+}
+.input-shell:focus-within::after{opacity:1; animation:heartbeatLine 1.5s ease-in-out infinite;}
+@keyframes heartbeatLine{
+  0%,100%{box-shadow:0 0 0 transparent; opacity:0.35;}
+  8%{box-shadow:0 0 10px var(--c1); opacity:1;}
+  16%{box-shadow:0 0 2px transparent; opacity:0.4;}
+  24%{box-shadow:0 0 14px var(--c1); opacity:1;}
+  40%{box-shadow:0 0 2px transparent; opacity:0.35;}
+}
+.field-premium input, .field-premium select{
+  position:relative; z-index:1; width:100%;
+  background:linear-gradient(150deg, var(--surface2), var(--surface));
+  border:1px solid var(--line); color:var(--text);
+  padding:13px 15px; border-radius:11px; font-family:'Inter',sans-serif; font-size:0.96rem;
+  box-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 22px -16px rgba(0,0,0,0.7);
+  transition:border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), transform 0.25s var(--ease);
+  appearance:none;
+}
+.field-premium input:hover, .field-premium select:hover{transform:translateY(-1px); border-color:var(--line-strong);}
+.field-premium input:focus, .field-premium select:focus{
+  outline:none; border-color:var(--c1); transform:translateY(-2px);
+  animation:fieldHeartbeat 1.5s ease-in-out infinite;
+}
+@keyframes fieldHeartbeat{
+  0%,100%{box-shadow:0 0 0 3px var(--c1-soft), 0 0 0 transparent;}
+  8%{box-shadow:0 0 0 3px var(--c1-soft), 0 0 18px var(--c1-soft);}
+  16%{box-shadow:0 0 0 3px var(--c1-soft), 0 0 4px transparent;}
+  24%{box-shadow:0 0 0 3px var(--c1-soft), 0 0 22px var(--c1-soft);}
+  40%{box-shadow:0 0 0 3px var(--c1-soft), 0 0 4px transparent;}
+}
+.field-premium select{background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237A8299' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; padding-right:38px;}
+.field-premium select option{background:#0D1120; color:var(--text); padding:8px;}
+
+/* Sliding premium pill selector (Goal / Food preference) */
+.chip-row.premium{position:relative; padding:5px; background:var(--surface2); border:1px solid var(--line); border-radius:100px; gap:2px; box-shadow:0 1px 0 rgba(255,255,255,0.04) inset;}
+.chip-row.premium .chip{position:relative; z-index:2; background:transparent; border:none; color:var(--muted); transition:color 0.35s var(--ease);}
+.chip-row.premium .chip.active{color:#05070D; font-weight:600;}
+.chip-row.premium .chip:hover:not(.active){color:var(--text);}
+.pill-slide{position:absolute; top:5px; bottom:5px; left:5px; border-radius:100px; z-index:1;
+  background:linear-gradient(100deg,var(--c1),var(--c2) 55%,var(--c3)); background-size:200% 100%;
+  box-shadow:0 6px 18px -6px var(--c1-soft), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  transition:left 0.45s var(--ease), width 0.45s var(--ease), background-position 0.6s var(--ease);
+}
+.pill-slide.moving{background-position:100% 0;}
+.sleep-control{display:flex; align-items:center; gap:14px;}
+.sleep-track-col{flex:1; min-width:0;}
+.sleep-track-col input[type=range]{width:100%;}
+.sleep-ticks{display:flex; justify-content:space-between; margin-top:6px; padding:0 9px; font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--faint);}
+.sleep-readout{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+.sleep-status{font-family:'JetBrains Mono',monospace; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; margin-top:9px; transition:color 0.5s var(--ease);}
+.sleep-emoji-badge{
+  --sleep-color: var(--c1); --sleep-soft: var(--c1-soft); --sleep-glow: transparent;
+  position:relative; width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--sleep-soft); border:1.5px solid var(--sleep-color);
+  transition:background 0.55s var(--ease), border-color 0.55s var(--ease);
+}
+.sleep-emoji-badge::before{
+  content:''; position:absolute; inset:-7px; border-radius:50%;
+  background:radial-gradient(circle, var(--sleep-glow) 0%, transparent 70%);
+  opacity:0; transform:scale(0.75); filter:blur(1px);
+  transition:opacity 0.5s var(--ease); pointer-events:none;
+}
+.sleep-emoji-badge.glow::before{opacity:1; animation:sleepHalo 1.9s ease-in-out infinite;}
+@keyframes sleepHalo{0%,100%{transform:scale(0.8); opacity:0.55;} 50%{transform:scale(1.25); opacity:1;}}
+.sleep-emoji-bob{display:inline-block; font-size:1.2rem; line-height:1; transform-origin:50% 80%; animation:sleepBob 2.6s ease-in-out infinite;}
+@keyframes sleepBob{0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-3px) rotate(-6deg);}}
+.sleep-emoji-inner{display:inline-block;}
+.sleep-emoji-inner.pop{animation:sleepPop 0.6s var(--ease);}
+@keyframes sleepPop{0%{transform:scale(1) rotate(0deg);} 35%{transform:scale(1.55) rotate(-10deg);} 65%{transform:scale(0.85) rotate(8deg);} 100%{transform:scale(1) rotate(0deg);}}
+
+/* Water glass icons — premium floating water */
+.glass-row{display:flex; flex-wrap:wrap; gap:9px; margin-top:10px;}
+.glass{width:24px; height:32px; cursor:pointer; flex-shrink:0; transition:transform 0.3s var(--ease); position:relative;}
+.glass:hover{transform:translateY(-3px) scale(1.1);}
+.glass-svg{width:100%; height:100%; overflow:visible; display:block;}
+.glass-outline{fill:none; stroke:var(--line-strong); stroke-width:1.6; transition:stroke 0.3s;}
+.glass.filled .glass-outline{stroke:var(--c1);}
+.glass-water{opacity:0; transition:opacity 0.4s var(--ease);}
+.glass.filled .glass-water{opacity:1;}
+.glass-water .water-body{fill:var(--c1); opacity:0.5;}
+.glass-water .wave-a{fill:var(--c1); opacity:0.85; animation:waveDriftSm 2.8s linear infinite;}
+.glass-water .wave-b{fill:#6ff5db; opacity:0.4; animation:waveDriftSm 4s linear infinite reverse;}
+@keyframes waveDriftSm{from{transform:translateX(0);} to{transform:translateX(-16px);}}
+.glass-water .bubble{fill:#fff; opacity:0; animation:bubbleFloatSm 2.6s ease-in infinite;}
+@keyframes bubbleFloatSm{0%{opacity:0; transform:translateY(0) scale(0.6);} 18%{opacity:0.9;} 88%{opacity:0;} 100%{opacity:0; transform:translateY(-15px) scale(1);}}
+.glass.just-filled{animation:glassPop 0.5s var(--ease);}
+@keyframes glassPop{0%{transform:scale(1);} 40%{transform:scale(1.3) translateY(-5px) rotate(-4deg);} 70%{transform:scale(0.96) rotate(2deg);} 100%{transform:scale(1) rotate(0);}}
+
+/* Hero animated glass on the Water stat card — premium floating liquid */
+.water-glass-hero{position:relative; width:30px; height:40px; margin-left:auto; border:2px solid var(--line-strong); border-radius:2px 2px 11px 11px; overflow:hidden; background:var(--surface2); flex-shrink:0;}
+.water-wave{position:absolute; left:0; bottom:0; width:100%; height:0%; overflow:hidden; transition:height 1s var(--ease);}
+.water-wave .blob{position:absolute; left:50%; bottom:-8px; width:58px; height:58px; margin-left:-29px; border-radius:42%; background:linear-gradient(200deg,#6ff5db,var(--c1)); animation:blobSpin 6s linear infinite;}
+.water-wave .blob.b2{width:64px; height:64px; margin-left:-32px; bottom:-11px; opacity:0.55; background:linear-gradient(200deg,var(--c1),#22c8e0); animation-duration:9s; animation-direction:reverse;}
+@keyframes blobSpin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+.water-wave .shimmer{position:absolute; inset:0; background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,0.4) 45%,transparent 65%); background-size:220% 220%; animation:shimmerMove 3.2s ease-in-out infinite; pointer-events:none;}
+@keyframes shimmerMove{0%{background-position:130% 0%;} 100%{background-position:-30% 0%;}}
+.water-wave .bub{position:absolute; width:3px; height:3px; border-radius:50%; background:rgba(255,255,255,0.85); bottom:2px; opacity:0; animation:bubbleUp 2.8s ease-in infinite;}
+.water-wave .bub.b1{left:24%; animation-delay:0.2s;}
+.water-wave .bub.b2{left:55%; animation-delay:1.1s;}
+.water-wave .bub.b3{left:76%; animation-delay:1.9s;}
+@keyframes bubbleUp{0%{opacity:0; transform:translateY(0) scale(0.6);} 18%{opacity:0.9;} 88%{opacity:0;} 100%{opacity:0; transform:translateY(-32px) scale(1);}}
+.water-wave.full{animation:waterPulse 1s var(--ease);}
+@keyframes waterPulse{0%{filter:brightness(1);} 45%{filter:brightness(1.6);} 100%{filter:brightness(1);}}
+
+.btn{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem; border:none; border-radius:10px; padding:13px 22px; cursor:pointer; transition:transform 0.25s var(--ease), box-shadow 0.25s var(--ease); display:inline-flex; align-items:center; gap:8px; position:relative; overflow:hidden;}
+.btn-primary{background:linear-gradient(100deg,var(--c1),var(--c2) 55%,var(--c3)); background-size:200% 100%; color:#040611;}
+.btn-primary:hover{transform:translateY(-2px); box-shadow:0 14px 34px var(--c1-soft); background-position:100% 0;}
+.btn-primary::before{content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent); transform:skewX(-20deg); transition:left 0.6s var(--ease);}
+.btn-primary:hover::before{left:130%;}
+.btn-ghost{background:var(--surface2); color:var(--text); border:1px solid var(--line);}
+.btn-ghost:hover{border-color:var(--c1); box-shadow:0 0 0 3px var(--c1-soft);}
+.btn-sm{padding:8px 14px; font-size:0.8rem;}
+.btn-pending{position:relative; animation:pendingPulse 1.6s ease-in-out infinite;}
+@keyframes pendingPulse{0%,100%{box-shadow:0 0 0 0 var(--c1-soft);} 50%{box-shadow:0 0 0 8px transparent;}}
+.pending-reminder{display:flex; align-items:center; gap:8px; margin-top:16px; padding:10px 14px; background:var(--c1-soft); border:1px solid var(--c1); border-radius:10px; font-size:0.82rem; color:var(--text);}
+.pending-reminder .arrow{animation:arrowNudge 1.1s ease-in-out infinite;}
+@keyframes arrowNudge{0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);}}
+.btn-danger{background:var(--danger-soft); color:var(--danger); border:1px solid rgba(255,92,122,0.3);}
+
+/* BANNERS */
+.banner{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; border-radius:12px; font-size:0.87rem; line-height:1.55; margin-bottom:22px;}
+.banner svg{width:19px; height:19px; flex-shrink:0; margin-top:1px;}
+.banner-info{background:var(--c1-soft); color:var(--text); border:1px solid rgba(79,242,232,0.25);}
+.banner-warn{background:var(--c3-soft); color:var(--text); border:1px solid rgba(255,180,84,0.3);}
+.banner-danger{background:var(--danger-soft); color:var(--text); border:1px solid rgba(255,92,122,0.35); animation:dangerPulse 1.8s ease-in-out infinite;}
+@keyframes dangerPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,92,122,0.25);} 50%{box-shadow:0 0 0 8px rgba(255,92,122,0);}}
+
+.tag{display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:0.68rem; padding:4px 10px; border-radius:100px; letter-spacing:0.05em;}
+.tag-ok{background:var(--success-soft); color:var(--success);}
+.tag-warn{background:var(--c3-soft); color:var(--c3);}
+.tag-danger{background:var(--danger-soft); color:var(--danger);}
+
+table{width:100%; border-collapse:collapse; font-size:0.88rem;}
+th{text-align:left; font-family:'JetBrains Mono',monospace; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); padding:10px 12px; border-bottom:1px solid var(--line);}
+td{padding:12px; border-bottom:1px solid var(--line); color:var(--text);}
+tr:last-child td{border-bottom:none;}
+
+.section-title{font-family:'Space Grotesk',sans-serif; font-size:1.3rem; font-weight:600; margin-bottom:4px;}
+.section-desc{color:var(--muted); font-size:0.9rem; margin-bottom:22px;}
+
+.empty{text-align:center; padding:40px 20px; color:var(--faint);}
+.empty svg{width:40px; height:40px; margin-bottom:12px; opacity:0.5;}
+
+/* ===== KABIR.AI CHAT ===== */
+.kabir-card{padding:0; display:flex; flex-direction:column; height:68vh; min-height:420px; max-height:720px; overflow:hidden;}
+.kabir-messages{flex:1; overflow-y:auto; padding:26px 26px 8px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth;}
+.kabir-messages::-webkit-scrollbar{width:6px;}
+.kabir-messages::-webkit-scrollbar-thumb{background:var(--line-strong); border-radius:100px;}
+.kabir-empty{margin:auto; text-align:center; max-width:400px; padding:20px;}
+.kabir-empty-orb{
+  width:56px; height:56px; margin:0 auto 16px; border-radius:50%;
+  background:linear-gradient(135deg,var(--c1),var(--c2) 60%,var(--c3));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 28px var(--c1-soft); animation:kabirOrbFloat 3.4s ease-in-out infinite;
+}
+.kabir-empty-orb span{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.4rem; color:#05070D;}
+@keyframes kabirOrbFloat{0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-5px) scale(1.04);}}
+.kabir-empty-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.15rem; margin-bottom:8px;}
+.kabir-empty-sub{color:var(--muted); font-size:0.88rem; line-height:1.55;}
+
+.kabir-msg{max-width:78%; padding:12px 16px; border-radius:16px; font-size:0.92rem; line-height:1.6; animation:kabirMsgIn 0.4s var(--ease); white-space:pre-wrap;}
+@keyframes kabirMsgIn{from{opacity:0; transform:translateY(10px) scale(0.98);} to{opacity:1; transform:translateY(0) scale(1);}}
+.kabir-msg.user{align-self:flex-end; background:linear-gradient(120deg,var(--c1-soft),var(--c2-soft)); border:1px solid var(--line-strong); border-bottom-right-radius:4px; color:var(--text);}
+.kabir-msg.assistant{align-self:flex-start; background:var(--surface2); border:1px solid var(--line); border-bottom-left-radius:4px; color:var(--text);}
+.kabir-msg.error{align-self:flex-start; background:var(--danger-soft); border:1px solid rgba(255,92,122,0.3); color:var(--text);}
+.kabir-msg-label{display:block; font-family:'JetBrains Mono',monospace; font-size:0.64rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--c1); margin-bottom:5px;}
+
+.kabir-typing{align-self:flex-start; display:flex; gap:5px; padding:14px 16px; background:var(--surface2); border:1px solid var(--line); border-radius:16px; border-bottom-left-radius:4px;}
+.kabir-typing span{width:6px; height:6px; border-radius:50%; background:var(--c1); animation:kabirTypingBounce 1.1s ease-in-out infinite;}
+.kabir-typing span:nth-child(2){animation-delay:0.15s;}
+.kabir-typing span:nth-child(3){animation-delay:0.3s;}
+@keyframes kabirTypingBounce{0%,60%,100%{transform:translateY(0); opacity:0.5;} 30%{transform:translateY(-5px); opacity:1;}}
+
+.kabir-input-row{display:flex; gap:10px; padding:18px 22px; border-top:1px solid var(--line); background:var(--surface2); flex-shrink:0;}
+.kabir-input-row input{flex:1; background:var(--surface); border:1px solid var(--line); color:var(--text); padding:12px 16px; border-radius:100px; font-family:'Inter',sans-serif; font-size:0.94rem; transition:border-color 0.2s, box-shadow 0.2s;}
+.kabir-input-row input:focus{border-color:var(--c1); box-shadow:0 0 0 3px var(--c1-soft); outline:none;}
+.kabir-input-row .btn{border-radius:100px;}
+
+.menu-btn{display:none; position:fixed; top:20px; left:20px; z-index:30; background:var(--surface); border:1px solid var(--line); border-radius:10px; width:42px; height:42px; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(10px); transition:transform 0.35s var(--ease), opacity 0.35s var(--ease);}
+.menu-btn.hide{transform:translateY(-140%); opacity:0; pointer-events:none;}
+
+.toast{position:fixed; bottom:26px; right:26px; background:var(--surface-solid); border:1px solid var(--c1); color:var(--text); padding:14px 22px; border-radius:10px; font-size:0.88rem; box-shadow:0 10px 30px rgba(0,0,0,0.3); z-index:100; transform:translateY(120%); transition:transform 0.4s cubic-bezier(.16,1,.3,1); font-family:'Space Grotesk',sans-serif;}
+.toast.show{transform:translateY(0);}
+
+.list-item{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);}
+
+/* ===== MEDICATIONS: PREMIUM REDESIGN ===== */
+.med-adherence-card{display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
+.med-ring-wrap{position:relative; width:104px; height:104px; flex-shrink:0;}
+.med-ring-svg{width:100%; height:100%; transform:rotate(-90deg);}
+.med-ring-track{fill:none; stroke:var(--line-strong); stroke-width:9;}
+.med-ring-fill{fill:none; stroke:var(--success); stroke-width:9; stroke-linecap:round; filter:drop-shadow(0 0 8px var(--success-soft)); transition:stroke-dashoffset 1.2s cubic-bezier(.16,1,.3,1);}
+.med-ring-label{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.med-ring-pct{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.35rem;}
+.med-ring-sub{font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-top:1px;}
+.med-adherence-text{flex:1; min-width:160px;}
+.med-adherence-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.05rem;}
+.med-adherence-sub{color:var(--muted); font-size:0.85rem; margin-top:4px; line-height:1.5;}
+
+.med-schedule-picker{display:flex; gap:10px; flex-wrap:wrap;}
+.med-slot-btn{display:flex; align-items:center; gap:7px; padding:9px 14px; border-radius:100px; border:1px solid var(--line); background:var(--surface2); color:var(--muted); font-size:0.84rem; cursor:pointer; transition:all 0.25s var(--ease);}
+.med-slot-btn svg{width:15px; height:15px;}
+.med-slot-btn:hover{border-color:var(--line-strong); transform:translateY(-2px);}
+.med-slot-btn.active{background:var(--c1-soft); border-color:var(--c1); color:var(--text); box-shadow:0 0 12px var(--c1-soft);}
+
+.med-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+.med-card{background:var(--surface2); border:1px solid var(--line); border-radius:16px; padding:18px; transition:transform 0.3s var(--ease), border-color 0.3s;}
+.med-card:hover{transform:translateY(-3px); border-color:var(--line-strong);}
+.med-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+.med-card-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1rem;}
+.med-card-dose{color:var(--muted); font-size:0.82rem; margin-top:2px;}
+.med-card-remove{width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--faint); cursor:pointer; flex-shrink:0; transition:all 0.2s;}
+.med-card-remove:hover{background:var(--danger-soft); color:var(--danger);}
+.med-card-remove svg{width:14px; height:14px;}
+.med-dose-row{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+.med-dose-pill{position:relative; display:flex; align-items:center; gap:6px; padding:8px 13px; border-radius:100px; border:1.5px solid var(--line); background:var(--surface); color:var(--muted); font-size:0.78rem; text-transform:capitalize; cursor:pointer; transition:all 0.25s var(--ease); overflow:hidden;}
+.med-dose-pill svg{width:13px; height:13px; flex-shrink:0;}
+.med-dose-pill.taken{background:var(--success-soft); border-color:var(--success); color:var(--text);}
+.med-dose-pill.taken svg{color:var(--success);}
+.med-dose-pill.just-taken{animation:medPop 0.5s var(--ease);}
+@keyframes medPop{0%{transform:scale(1);} 40%{transform:scale(1.15);} 100%{transform:scale(1);}}
+.med-card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
+.med-duration{font-size:0.74rem; color:var(--faint);}
+.med-streak{display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:0.74rem; color:var(--c4);}
+.med-streak svg{width:13px; height:13px;}
+
+/* ===== MEDITATION / BREATHING TIMER ===== */
+.breathe-card{display:flex; flex-direction:column; align-items:center; padding:40px 20px 32px; transition:box-shadow 0.6s var(--ease);}
+.breathe-card.active{box-shadow:0 0 60px var(--c1-soft);}
+.breathe-stage{position:relative; width:240px; height:240px; display:flex; align-items:center; justify-content:center;}
+.breathe-ring{position:absolute; border-radius:50%; border:1px solid var(--line); opacity:0.5; animation:breatheRingPulse 5s ease-in-out infinite;}
+.breathe-ring.r1{width:150px; height:150px;}
+.breathe-ring.r2{width:190px; height:190px; animation-delay:0.6s;}
+.breathe-ring.r3{width:230px; height:230px; animation-delay:1.2s;}
+@keyframes breatheRingPulse{0%,100%{transform:scale(1); opacity:0.35;} 50%{transform:scale(1.04); opacity:0.65;}}
+.breathe-orb{
+  position:relative; width:110px; height:110px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--c1), var(--c2) 70%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  box-shadow:0 0 50px var(--c1-soft), inset 0 0 30px rgba(255,255,255,0.15);
+  transform:scale(1); transition:transform 0.6s cubic-bezier(.45,0,.55,1);
+  z-index:2;
+}
+.breathe-phase{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.95rem; color:#06111c; letter-spacing:0.02em;}
+.breathe-count{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.1rem; color:#06111c; margin-top:2px;}
+.breathe-timeleft{font-family:'JetBrains Mono',monospace; font-size:0.85rem; color:var(--muted); margin-top:24px; letter-spacing:0.03em;}
+.breathe-controls{display:flex; gap:12px; margin-top:18px;}
+
+.practice-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+.practice-stat{background:var(--surface2); border:1px solid var(--line); border-radius:16px; padding:20px 12px; text-align:center; transition:transform 0.3s var(--ease), border-color 0.3s, filter 0.6s var(--ease), opacity 0.6s var(--ease);}
+.practice-stat:hover{transform:translateY(-3px);}
+.practice-icon{width:38px; height:38px; margin:0 auto 12px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:box-shadow 0.5s var(--ease), transform 0.5s var(--ease);}
+.practice-icon svg{width:18px; height:18px;}
+.practice-icon.minutes{background:var(--c1-soft); color:var(--c1);}
+.practice-icon.sessions{background:var(--c2-soft); color:var(--c2);}
+.practice-stat:nth-child(1) .practice-num{background:linear-gradient(90deg,var(--text),var(--c1)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+.practice-stat:nth-child(2) .practice-num{background:linear-gradient(90deg,var(--text),var(--c2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+.practice-num{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.85rem;}
+.practice-lab{color:var(--muted); font-size:0.78rem; margin-top:4px;}
+
+/* Streak — glows gold while alive, drains to grayscale the moment it breaks */
+.streak-stat .practice-icon.streak-icon{background:var(--c4-soft); color:var(--c4);}
+.streak-stat .practice-num{background:linear-gradient(90deg,var(--text),var(--c4)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+.streak-stat.active{border-color:var(--c4);}
+.streak-stat.active .practice-icon.streak-icon{animation:streakFlame 1.8s ease-in-out infinite;}
+@keyframes streakFlame{0%,100%{box-shadow:0 0 0 0 var(--c4-soft); transform:scale(1);} 50%{box-shadow:0 0 18px 5px var(--c4-soft); transform:scale(1.1);}}
+.streak-stat.broken{filter:grayscale(1); opacity:0.5;}
+.streak-stat.broken:hover{opacity:0.75;}
+
+/* ===== SYMPTOM JOURNAL: collapsible "more detail" ===== */
+.sym-more-toggle{display:flex; align-items:center; gap:7px; margin-top:16px; padding:10px 0; color:var(--c1); font-size:0.85rem; cursor:pointer; user-select:none; width:fit-content;}
+.sym-more-toggle svg{width:15px; height:15px; transition:transform 0.3s var(--ease);}
+.sym-more-toggle.open svg{transform:rotate(180deg);}
+.sym-more-panel{max-height:0; opacity:0; overflow:hidden; transition:max-height 0.45s var(--ease), opacity 0.35s var(--ease);}
+.sym-more-panel.open{max-height:600px; opacity:1;}
+
+/* ===== FOOD ANALYZER: PREMIUM REDESIGN ===== */
+.food-quick-row{display:flex; flex-wrap:wrap; gap:9px;}
+.food-quick-chip{display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:100px; border:1px solid var(--line); background:var(--surface2); font-size:0.85rem; cursor:pointer; transition:all 0.2s var(--ease);}
+.food-quick-chip:hover{border-color:var(--c1); transform:translateY(-2px); box-shadow:0 0 10px var(--c1-soft);}
+.food-quick-chip .emoji{font-size:1rem;}
+.food-quick-chip.expanded{border-color:var(--c1); background:var(--c1-soft); cursor:default; transform:none; box-shadow:none;}
+.fqc-stepper{display:flex; align-items:center; gap:8px; margin-left:6px;}
+.fqc-stepper:empty{display:none; margin:0;}
+.fqc-stepper button{width:22px; height:22px; border-radius:50%; border:1px solid var(--line-strong); background:var(--surface); color:var(--text); font-size:0.95rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s var(--ease); padding:0;}
+.fqc-stepper button:hover{border-color:var(--c1); color:var(--c1);}
+.fqc-qty-input{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.85rem; width:40px; text-align:center; background:var(--surface); border:1px solid var(--line-strong); border-radius:6px; color:var(--text); padding:3px 2px; -moz-appearance:textfield;}
+.fqc-qty-input.float-up, .fqc-unit.float-up{animation:fqcFloatUp 0.38s cubic-bezier(.34,1.56,.64,1);}
+.fqc-qty-input.float-down, .fqc-unit.float-down{animation:fqcFloatDown 0.38s cubic-bezier(.34,1.56,.64,1);}
+@keyframes fqcFloatUp{0%{transform:translateY(7px); opacity:0.35;} 55%{transform:translateY(-4px); opacity:1;} 100%{transform:translateY(0); opacity:1;}}
+@keyframes fqcFloatDown{0%{transform:translateY(-7px); opacity:0.35;} 55%{transform:translateY(4px); opacity:1;} 100%{transform:translateY(0); opacity:1;}}
+.fqc-qty-input::-webkit-outer-spin-button, .fqc-qty-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.fqc-qty-input:focus{outline:none; border-color:var(--c1); box-shadow:0 0 0 2px var(--c1-soft);}
+.fqc-unit{font-size:0.72rem; color:var(--muted); white-space:nowrap;}
+.fqc-confirm{width:auto; border-radius:100px; padding:0 12px; height:24px; background:var(--c1); color:#06111c; font-weight:600; font-size:0.72rem; border:none; margin-left:2px;}
+
+.macro-bar{display:flex; width:100%; height:10px; border-radius:100px; overflow:hidden; margin-top:16px; background:var(--surface2);}
+.macro-seg{height:100%; transition:width 1s cubic-bezier(.16,1,.3,1);}
+.macro-seg.protein{background:var(--c2);}
+.macro-seg.carbs{background:var(--c4);}
+.macro-seg.fat{background:var(--c3);}
+.macro-legend{display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; font-size:0.78rem; color:var(--muted);}
+.macro-legend .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px;}
+.macro-legend .dot.protein{background:var(--c2);}
+.macro-legend .dot.carbs{background:var(--c4);}
+.macro-legend .dot.fat{background:var(--c3);}
+
+.food-item-row{display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:0.86rem;}
+.food-item-row:last-child{border-bottom:none;}
+.food-item-row.unmatched{color:var(--faint);}
+.food-item-name{text-transform:capitalize;}
+
+.food-log-card{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--line);}
+.food-log-card:last-of-type{border-bottom:none;}
+.food-log-text{font-size:0.92rem; text-transform:capitalize;}
+.food-log-macros{display:flex; gap:7px; margin-top:7px; flex-wrap:wrap;}
+.food-chip{font-family:'JetBrains Mono',monospace; font-size:0.7rem; padding:3px 9px; border-radius:100px; background:var(--surface2); border:1px solid var(--line);}
+.food-chip.cal{color:var(--c1);}
+.food-chip.protein{color:var(--c2);}
+.food-chip.carbs{color:var(--c4);}
+.food-chip.fat{color:var(--c3);}
+.food-log-remove{width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--faint); cursor:pointer; flex-shrink:0; transition:all 0.2s;}
+.food-log-remove:hover{background:var(--danger-soft); color:var(--danger);}
+.food-log-remove svg{width:14px; height:14px;}
+
+.food-progress{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+.food-progress-label{font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--muted); margin-bottom:8px;}
+.food-progress-track{height:8px; border-radius:100px; background:var(--surface2); overflow:hidden;}
+.food-progress-fill{height:100%; border-radius:100px; background:linear-gradient(90deg,var(--c1),var(--c2)); transition:width 1s cubic-bezier(.16,1,.3,1); box-shadow:0 0 8px var(--c1-soft);}
+
+/* ===== DIET PLANNER: day tabs + meal cards ===== */
+.diet-meal-card{display:flex; flex-direction:column;}
+.diet-meal-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.diet-meal-icon{font-size:1.25rem;}
+.diet-meal-type{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem; color:var(--c1);}
+.diet-meal-cal{margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted); background:var(--surface2); padding:3px 9px; border-radius:100px; border:1px solid var(--line);}
+.diet-meal-text{color:var(--text); margin-top:12px; font-size:0.95rem; line-height:1.5;}
+.diet-day-row{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;}
+.diet-day-row::-webkit-scrollbar{display:none;}
+.diet-day-row .chip{flex-shrink:0;}
+
+
+
+
+
+.list-item:last-child{border-bottom:none;}
+
+/* ===== VITALS LOADER ===== */
+.loader-overlay{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; background:rgba(3,5,14,0.55); backdrop-filter:blur(18px) saturate(140%); opacity:0; pointer-events:none; transition:opacity 0.4s var(--ease);}
+html[data-theme="light"] .loader-overlay{background:rgba(240,243,250,0.65);}
+.loader-overlay.show{opacity:1; pointer-events:all;}
+.loader-box{display:flex; flex-direction:column; align-items:center; gap:22px; transform:translateY(10px); opacity:0; transition:transform 0.5s var(--ease), opacity 0.5s var(--ease);}
+.loader-overlay.show .loader-box{transform:translateY(0); opacity:1;}
+.loader-ring-wrap{position:relative; width:104px; height:104px;}
+.loader-ring-wrap svg{position:absolute; inset:0; width:100%; height:100%;}
+.loader-ring-track{fill:none; stroke:var(--line); stroke-width:2;}
+.loader-ring-arc{fill:none; stroke-linecap:round; stroke-dasharray:70 220; filter:drop-shadow(0 0 8px var(--c1));}
+.loader-ring-arc.r1{stroke:url(#loaderGrad1); animation:loaderSpin 1.4s linear infinite;}
+.loader-ring-arc.r2{stroke:url(#loaderGrad2); stroke-dasharray:40 250; animation:loaderSpin 2s linear infinite reverse; opacity:0.65;}
+@keyframes loaderSpin{to{transform:rotate(360deg);}}
+.loader-core{position:absolute; inset:32px; border-radius:50%; background:radial-gradient(circle, var(--c1-soft), transparent 70%); display:flex; align-items:center; justify-content:center;}
+.loader-core svg{width:22px; height:22px; color:var(--c1); filter:drop-shadow(0 0 10px var(--c1)); animation:beat 1.15s ease-in-out infinite;}
+.loader-pulse{width:190px; height:36px; overflow:visible;}
+.loader-pulse path{fill:none; stroke:url(#loaderGrad1); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:260; stroke-dashoffset:260; animation:loaderDraw 1.3s ease-in-out infinite;}
+@keyframes loaderDraw{0%{stroke-dashoffset:260;} 55%{stroke-dashoffset:0;} 100%{stroke-dashoffset:-40;}}
+.loader-text{font-family:'JetBrains Mono',monospace; font-size:0.76rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-align:center; min-height:16px;}
+.loader-dots span{display:inline-block; animation:loaderDot 1.2s infinite; opacity:0.2;}
+.loader-dots span:nth-child(2){animation-delay:0.15s;} .loader-dots span:nth-child(3){animation-delay:0.3s;}
+@keyframes loaderDot{0%,100%{opacity:0.2;} 50%{opacity:1;}}
+
+/* ===== PRINT / REPORT MODAL (avoids popup blockers entirely) ===== */
+.print-modal-overlay{position:fixed; inset:0; z-index:250; display:none; align-items:center; justify-content:center; background:rgba(3,5,14,0.72); backdrop-filter:blur(10px); padding:30px;}
+.print-modal-overlay.show{display:flex;}
+.print-modal{background:#ffffff; color:#1a1a1a; width:100%; max-width:720px; max-height:82vh; overflow-y:auto; border-radius:14px; padding:44px; box-shadow:0 30px 90px rgba(0,0,0,0.55); font-family:Georgia,serif;}
+.print-modal h1{font-size:1.5rem; border-bottom:2px solid #333; padding-bottom:10px;}
+.print-modal h2{font-size:1.05rem; margin-top:24px; color:#333;}
+.print-modal p, .print-modal li{font-size:0.92rem; line-height:1.6;}
+.print-modal table{width:100%; border-collapse:collapse; margin-top:8px;}
+.print-modal td, .print-modal th{border:1px solid #ccc; padding:6px 10px; text-align:left; font-size:0.85rem;}
+.print-modal-actions{display:flex; gap:10px; justify-content:flex-end; padding:18px 30px; font-family:'Space Grotesk',sans-serif;}
+@media print{
+  body > *:not(.print-modal-overlay){display:none !important;}
+  .print-modal-overlay{position:static !important; background:none !important; backdrop-filter:none !important; display:block !important; padding:0 !important;}
+  .print-modal{box-shadow:none !important; max-height:none !important; overflow:visible !important; max-width:100% !important; border-radius:0 !important;}
+  .print-modal-actions{display:none !important;}
+}
+</style>
+</head>
+<body>
+<div class="mesh-bg"><div class="mesh-blob mesh-1"></div><div class="mesh-blob mesh-2"></div><div class="mesh-blob mesh-3"></div><div class="mesh-blob mesh-4"></div></div>
+<canvas id="bgCanvas"></canvas>
+<div class="grain"></div>
+
+<div class="loader-overlay" id="loaderOverlay">
+  <svg width="0" height="0"><defs>
+    <linearGradient id="loaderGrad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4FF2E8"/><stop offset="100%" stop-color="#A78BFA"/></linearGradient>
+    <linearGradient id="loaderGrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF6FD8"/><stop offset="100%" stop-color="#FFC15E"/></linearGradient>
+  </defs></svg>
+  <div class="loader-box">
+    <div class="loader-ring-wrap">
+      <svg viewBox="0 0 104 104">
+        <circle class="loader-ring-track" cx="52" cy="52" r="46"/>
+        <circle class="loader-ring-arc r1" cx="52" cy="52" r="46" style="transform-origin:52px 52px;"/>
+        <circle class="loader-ring-arc r2" cx="52" cy="52" r="38" style="transform-origin:52px 52px;"/>
+      </svg>
+      <div class="loader-core"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.5-8.5C.7 9.3 1.9 5.6 5 4.2c2.1-.9 4.3-.2 5.7 1.4l1.3 1.5 1.3-1.5c1.4-1.6 3.6-2.3 5.7-1.4 3.1 1.4 4.3 5.1 2.5 8.3C18.7 16.65 12 21 12 21z"/></svg></div>
+    </div>
+    <svg class="loader-pulse" viewBox="0 0 190 36"><path d="M0,18 L55,18 L65,4 L75,32 L85,10 L95,18 L190,18"/></svg>
+    <div class="loader-text" id="loaderText">Syncing<span class="loader-dots"><span>.</span><span>.</span><span>.</span></span></div>
+  </div>
+</div>
+
+<div class="print-modal-overlay" id="printModalOverlay">
+  <div style="display:flex; flex-direction:column; max-height:82vh;">
+    <div class="print-modal" id="printModalBody"></div>
+    <div class="print-modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closePrintModal()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+  </div>
+</div>
+<div class="menu-btn" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-name">VITAL</span><span class="brand-sub">OS</span></div>
+    <ul class="navlist" id="navlist"></ul>
+    <div class="sidebar-foot">
+      <div class="theme-toggle" onclick="toggleTheme()">
+        <div class="track"><span>Dark</span><span>Light</span></div>
+        <div class="theme-thumb" id="themeThumb">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></svg>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view active" id="view-dashboard">
+      <div class="topbar">
+        <div><h1 id="dbGreeting">Dashboard</h1><div class="sub">Your health, at a glance.</div></div>
+        <div class="pulse-badge"><span class="d"></span><span id="dbDate"></span></div>
+      </div>
+      <div id="dashRedflag"></div>
+      <div class="grid grid-4 stagger" style="margin-bottom:20px;">
+        <div class="card reveal stat-mini"><span class="card-tag">Calories today</span><div class="num" id="dCal">0</div><div class="lab">of <span id="dCalTarget">—</span> kcal target</div><div class="bar-track"><div class="bar-fill" id="dCalBar" style="background:linear-gradient(90deg,var(--c1),var(--c2));"></div></div></div>
+        <div class="card reveal stat-mini alt"><span class="card-tag">Protein today</span><div class="num" id="dProtein">0g</div><div class="lab">of <span id="dProteinTarget">—</span>g target</div><div class="bar-track"><div class="bar-fill" id="dProteinBar" style="background:linear-gradient(90deg,var(--c2),var(--c3));"></div></div></div>
+        <div class="card reveal stat-mini"><span class="card-tag">Water</span><div style="display:flex; align-items:flex-end; gap:12px;"><div class="num" id="dWater">0</div><div class="water-glass-hero" id="waterHero"><div class="water-wave" id="waterWave"><div class="blob b1"></div><div class="blob b2"></div><div class="shimmer"></div><div class="bub b1"></div><div class="bub b2"></div><div class="bub b3"></div></div></div></div><div class="lab">of <span id="dWaterTarget">8</span> glasses</div><div class="bar-track"><div class="bar-fill" id="dWaterBar" style="background:linear-gradient(90deg,var(--c1),#6ff5db);"></div></div></div>
+        <div class="card reveal stat-mini alt"><span class="card-tag">Med adherence</span><div class="num" id="dMedAdh">—</div><div class="lab">today's doses taken</div><div class="bar-track"><div class="bar-fill" id="dMedBar" style="background:linear-gradient(90deg,var(--success),var(--c1));"></div></div></div>
+      </div>
+      <div class="grid grid-2 stagger">
+        <div class="card reveal">
+          <span class="card-tag">Weight trend</span><div class="card-title">Last entries</div>
+          <canvas id="weightChart" height="160" style="width:100%; margin-top:12px;"></canvas>
+          <div class="field-row" style="margin-top:16px;">
+            <div class="field" style="margin-bottom:0;"><input type="number" id="newWeight" placeholder="Log today's weight (kg)"></div>
+            <button class="btn btn-ghost btn-sm" onclick="logWeight()">Log</button>
+          </div>
+        </div>
+        <div class="card reveal">
+          <span class="card-tag">Quick log</span><div class="card-title">Water &amp; sleep</div>
+          <div style="margin-top:16px;">
+            <div class="field"><label>Glasses of water today <span class="mono" id="waterGoalLabel" style="color:var(--faint); font-size:0.7rem;"></span></label><div class="glass-row" id="waterGlasses"></div></div>
+            <div class="field"><label>Hours slept last night</label>
+              <div class="sleep-control">
+                <div class="sleep-track-col">
+                  <input type="range" min="1" max="12" step="1" value="7" id="sleepSlider" oninput="updateSleep(this.value)">
+                  <div class="sleep-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span></div>
+                </div>
+                <div class="sleep-readout">
+                  <span class="slider-val" id="sleepVal">7</span>
+                  <div class="sleep-emoji-badge" id="sleepEmojiBadge"><span class="sleep-emoji-bob"><span class="sleep-emoji-inner" id="sleepEmoji" data-emoji="😄">😄</span></span></div>
+                </div>
+              </div>
+              <div class="sleep-status mono" id="sleepStatus">Refreshed</div>
+            </div>
+            <div class="field" style="margin-bottom:0;"><label>Steps today</label><input type="number" id="stepsInput" placeholder="e.g. 4500" onchange="updateSteps(this.value)"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PROFILE ===== -->
+    <section class="view" id="view-profile">
+      <div class="topbar"><div><h1>Health Profile</h1><div class="sub">This powers every other screen — fill it in first.</div></div></div>
+      <div class="grid grid-2 stagger">
+        <div class="card reveal">
+          <span class="card-tag">Body &amp; goal</span><div class="card-title">Core metrics</div>
+          <div class="field field-premium" style="margin-top:16px;"><label>Name</label><div class="input-shell"><input type="text" id="pName" placeholder="What should we call you?"></div></div>
+          <div class="field-row">
+            <div class="field field-premium"><label>Age</label><div class="input-shell"><input type="number" id="pAge"></div></div>
+            <div class="field field-premium"><label>Sex</label><div class="input-shell"><select id="pSex"><option value="male">Male</option><option value="female">Female</option><option value="other">Other / Non-binary</option></select></div></div>
+          </div>
+          <div class="field-row">
+            <div class="field field-premium"><label>Height (cm)</label><div class="input-shell"><input type="number" id="pHeight"></div></div>
+            <div class="field field-premium"><label>Weight (kg)</label><div class="input-shell"><input type="number" id="pWeight"></div></div>
+          </div>
+          <div class="field field-premium"><label>Activity level</label>
+            <div class="input-shell">
+            <select id="pActivity">
+              <option value="1.2">Sedentary</option><option value="1.375">Light</option>
+              <option value="1.55" selected>Moderate</option><option value="1.725">Active</option><option value="1.9">Very active</option>
+            </select>
+            </div>
+          </div>
+          <div class="field"><label>Goal</label><div class="chip-row premium" id="pGoalRow">
+            <div class="chip active" data-v="-500">Lose weight</div><div class="chip" data-v="0">Maintain</div><div class="chip" data-v="400">Gain weight</div>
+          </div></div>
+        </div>
+        <div class="card reveal">
+          <span class="card-tag">Preferences &amp; safety</span><div class="card-title">Diet, allergies &amp; contact</div>
+          <div class="field" style="margin-top:16px;"><label>Food preference</label><div class="chip-row premium" id="pFoodRow">
+            <div class="chip active" data-v="veg">Vegetarian</div><div class="chip" data-v="nonveg">Non-vegetarian</div><div class="chip" data-v="eggveg">Eggetarian</div>
+          </div></div>
+          <div class="field field-premium"><label>Known allergies (comma separated)</label><div class="input-shell"><input type="text" id="pAllergies" placeholder="e.g. peanuts, penicillin"></div></div>
+          <div class="field field-premium"><label>Sleep target (hrs)</label><div class="input-shell"><input type="number" id="pSleepTarget" value="8"></div></div>
+          <div class="field-row">
+            <div class="field field-premium"><label>Emergency contact name</label><div class="input-shell"><input type="text" id="pEmName"></div></div>
+            <div class="field field-premium"><label>Emergency contact phone</label><div class="input-shell"><input type="text" id="pEmPhone"></div></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:22px;" onclick="saveProfile()">Save profile &amp; recalculate</button>
+      <div id="profileSummary" style="margin-top:26px;"></div>
+    </section>
+
+    <!-- ===== DIET PLANNER ===== -->
+    <section class="view" id="view-diet">
+      <div class="topbar"><div><h1>Smart Diet Planner</h1><div class="sub">Full macro breakdown, not just calories.</div></div></div>
+      <div id="dietNoProfile" class="banner banner-warn" style="display:none;">Complete your profile first — targets are calculated from your body metrics.</div>
+      <div class="grid grid-4 stagger" id="dietTargets" style="margin-bottom:24px;"></div>
+      <div class="card reveal" style="margin-bottom:24px;">
+        <span class="card-tag">Options</span><div class="card-title">Meal plan settings</div>
+        <div class="field-row" style="margin-top:16px;">
+          <div class="field"><label>Budget</label><div class="chip-row" id="dietBudgetRow">
+            <div class="chip active" data-v="standard">Standard</div><div class="chip" data-v="tight">Hostel / tight budget</div>
+          </div></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="generateMealPlan()">Generate week plan</button>
+      </div>
+      <div id="mealPlanOut" class="reveal"></div>
+    </section>
+
+    <!-- ===== FOOD ANALYZER ===== -->
+    <section class="view" id="view-food">
+      <div class="topbar"><div><h1>Food → Nutrient Analyzer</h1><div class="sub">Describe what you ate — get the breakdown instantly.</div></div></div>
+
+      <div class="card reveal" style="margin-bottom:22px;">
+        <span class="card-tag">Quick add</span><div class="card-title">Tap to add to your description</div>
+        <div class="food-quick-row" id="foodQuickRow"></div>
+      </div>
+
+      <div class="card reveal">
+        <span class="card-tag">Log a meal</span><div class="card-title">e.g. "2 roti + dal + rice + curd"</div>
+        <div class="field" style="margin-top:16px;"><textarea id="foodInput" placeholder="Type what you ate, separated by + or ,"></textarea></div>
+        <button class="btn btn-primary btn-sm" onclick="analyzeFood()">Analyze</button>
+      </div>
+      <div id="foodResult" style="margin-top:22px;"></div>
+      <div class="card reveal" style="margin-top:22px;">
+        <span class="card-tag">Today's log</span><div class="card-title">Running total</div>
+        <div id="foodLogList" style="margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <!-- ===== MEDICATIONS ===== -->
+    <section class="view" id="view-meds">
+      <div class="topbar"><div><h1>Medication Organizer</h1><div class="sub">Track what you take, when, and whether you took it.</div></div></div>
+      <div class="banner banner-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Keeping an accurate, current medication list is something clinicians consistently recommend — it helps every doctor you see going forward.</div>
+      <div class="card reveal med-adherence-card" style="margin-bottom:22px;" id="medAdherenceCard">
+        <div class="med-ring-wrap">
+          <svg class="med-ring-svg" viewBox="0 0 110 110">
+            <circle class="med-ring-track" cx="55" cy="55" r="47"/>
+            <circle class="med-ring-fill" id="medRingFill" cx="55" cy="55" r="47"/>
+          </svg>
+          <div class="med-ring-label"><span class="med-ring-pct" id="medRingPct">0%</span><span class="med-ring-sub">Today</span></div>
+        </div>
+        <div class="med-adherence-text">
+          <div class="med-adherence-title" id="medAdherenceTitle">No doses scheduled yet</div>
+          <div class="med-adherence-sub" id="medAdherenceSub">Add a medicine below to start tracking today's adherence.</div>
+        </div>
+      </div>
+      <div class="card reveal" style="margin-bottom:22px;">
+        <span class="card-tag">Add medicine</span><div class="card-title">New entry</div>
+        <div class="field-row" style="margin-top:16px;">
+          <div class="field"><label>Name</label><input type="text" id="medName" placeholder="e.g. Metformin"></div>
+          <div class="field"><label>Dose</label><input type="text" id="medDose" placeholder="e.g. 500mg"></div>
+        </div>
+        <div class="field"><label>Schedule</label><div class="chip-row med-schedule-picker" id="medScheduleRow">
+          <div class="chip med-slot-btn" data-v="morning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>Morning</div>
+          <div class="chip med-slot-btn" data-v="afternoon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>Afternoon</div>
+          <div class="chip med-slot-btn" data-v="night"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Night</div>
+        </div></div>
+        <div class="field"><label>Duration / notes</label><input type="text" id="medDuration" placeholder="e.g. 30 days, until follow-up"></div>
+        <button class="btn btn-primary btn-sm" onclick="addMedicine()">Add to list</button>
+      </div>
+      <div class="card reveal">
+        <span class="card-tag">Full list</span><div class="card-title">All medications</div>
+        <div id="medFullList" class="med-grid" style="margin-top:14px;"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:18px;" onclick="exportMeds()">Export list for doctor</button>
+      </div>
+    </section>
+
+    <!-- ===== SAFETY CHECKER ===== -->
+    <section class="view" id="view-safety">
+      <div class="topbar"><div><h1>Medicine Safety Checker</h1><div class="sub">Flags duplicates, possible interactions, and allergy conflicts — checked automatically.</div></div></div>
+      <div class="banner banner-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><strong>This is an information tool, not a prescriber.</strong> It runs on a small illustrative dataset — always confirm with a doctor or pharmacist before acting on any flag here.</div>
+      <div id="safetyResult"></div>
+    </section>
+
+    <!-- ===== SYMPTOM JOURNAL ===== -->
+    <section class="view" id="view-symptoms">
+      <div class="topbar"><div><h1>Symptom Journal</h1><div class="sub">Track patterns over time — this supports a doctor conversation, it doesn't replace one.</div></div></div>
+      <div id="symptomRedflag"></div>
+      <div class="card reveal" style="margin-bottom:22px;">
+        <span class="card-tag">Today's entry</span><div class="card-title">Rate 0 (none) – 5 (severe) — takes 10 seconds</div>
+        <div class="grid grid-2" style="margin-top:16px;">
+          <div class="field"><label>Headache</label><div class="slider-wrap"><input type="range" min="0" max="5" value="0" id="symHead" oninput="syncSlider('symHead')"><span class="slider-val" id="symHeadVal">0</span></div></div>
+          <div class="field"><label>Fatigue</label><div class="slider-wrap"><input type="range" min="0" max="5" value="0" id="symFatigue" oninput="syncSlider('symFatigue')"><span class="slider-val" id="symFatigueVal">0</span></div></div>
+          <div class="field"><label>Pain level</label><div class="slider-wrap"><input type="range" min="0" max="5" value="0" id="symPain" oninput="syncSlider('symPain')"><span class="slider-val" id="symPainVal">0</span></div></div>
+        </div>
+        <div class="sym-more-toggle" id="symMoreToggle" onclick="toggleSymptomDetail()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="symMoreIcon"><polyline points="6 9 12 15 18 9"/></svg>
+          <span id="symMoreLabel">Add more detail (optional)</span>
+        </div>
+        <div class="sym-more-panel" id="symMorePanel">
+          <div class="grid grid-2" style="margin-top:14px;">
+            <div class="field"><label>Mood (0 low – 5 great)</label><div class="slider-wrap"><input type="range" min="0" max="5" value="3" id="symMood" oninput="syncSlider('symMood')"><span class="slider-val" id="symMoodVal">3</span></div></div>
+            <div class="field"><label>Appetite</label><select id="symAppetite"><option>Normal</option><option>Reduced</option><option>Increased</option><option>None</option></select></div>
+            <div class="field"><label>Digestion</label><select id="symDigestion"><option>Normal</option><option>Bloating</option><option>Diarrhea</option><option>Constipation</option></select></div>
+            <div class="field"><label>Body temperature (°F)</label><input type="number" id="symTemp" placeholder="e.g. 98.6" step="0.1"></div>
+            <div class="field"><label>Sleep last night (hrs)</label><input type="number" id="symSleep" step="0.5"></div>
+          </div>
+          <div class="field"><label>Notes</label><textarea id="symNotes" placeholder="Anything else worth noting today"></textarea></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveSymptomEntry()">Save today's entry</button>
+      </div>
+      <div class="card reveal">
+        <span class="card-tag">Last 14 days</span><div class="card-title">Trend</div>
+        <canvas id="symptomChart" height="180" style="width:100%; margin-top:12px;"></canvas>
+      </div>
+    </section>
+
+    <!-- ===== LAB REPORTS ===== -->
+    <section class="view" id="view-labs">
+      <div class="topbar"><div><h1>Lab Report Explainer</h1><div class="sub">Plain-language context for your test values.</div></div></div>
+      <div class="banner banner-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>This explains what a test generally measures — it does not diagnose. Discuss any out-of-range result with a healthcare professional.</div>
+      <div class="card reveal" style="margin-bottom:22px;">
+        <span class="card-tag">Add a result</span><div class="card-title">Enter manually from your report</div>
+        <div class="field-row" style="margin-top:16px;">
+          <div class="field"><label>Test name</label><select id="labTest"></select></div>
+          <div class="field"><label>Your value</label><input type="number" step="0.01" id="labValue"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addLabResult()">Explain this result</button>
+      </div>
+      <div id="labResults"></div>
+    </section>
+
+    <!-- ===== MEDITATION ===== -->
+    <section class="view" id="view-meditate">
+      <div class="topbar"><div><h1>Meditation</h1><div class="sub">A guided breathing timer to help you slow down.</div></div></div>
+
+      <div class="card reveal" style="margin-bottom:22px;">
+        <span class="card-tag">Pattern</span><div class="card-title">Choose a breathing rhythm</div>
+        <div class="chip-row premium" id="medPatternRow" style="margin-top:14px; position:relative;">
+          <div class="chip active" data-v="simple" data-in="4" data-hold1="0" data-out="4" data-hold2="0">Simple · 4-4</div>
+          <div class="chip" data-v="box" data-in="4" data-hold1="4" data-out="4" data-hold2="4">Box · 4-4-4-4</div>
+          <div class="chip" data-v="relax" data-in="4" data-hold1="7" data-out="8" data-hold2="0">Relaxing · 4-7-8</div>
+        </div>
+        <span class="card-tag" style="margin-top:20px; display:inline-block;">Duration</span>
+        <div class="chip-row premium" id="medDurationRow" style="margin-top:14px; position:relative;">
+          <div class="chip" data-v="1">1 min</div>
+          <div class="chip active" data-v="3">3 min</div>
+          <div class="chip" data-v="5">5 min</div>
+          <div class="chip" data-v="10">10 min</div>
+        </div>
+      </div>
+
+      <div class="card reveal breathe-card" id="breatheCard">
+        <div class="breathe-stage">
+          <div class="breathe-ring r3"></div>
+          <div class="breathe-ring r2"></div>
+          <div class="breathe-ring r1"></div>
+          <div class="breathe-orb" id="breatheOrb">
+            <span class="breathe-phase" id="breathePhaseText">Ready</span>
+            <span class="breathe-count" id="breatheCountText"></span>
+          </div>
+        </div>
+        <div class="breathe-timeleft" id="breatheTimeLeft">3:00 remaining</div>
+        <div class="breathe-controls">
+          <button class="btn btn-primary" id="breatheStartBtn" onclick="toggleMeditation()">Begin session</button>
+          <button class="btn btn-ghost btn-sm" id="breatheResetBtn" onclick="resetMeditation()" style="display:none;">Reset</button>
+        </div>
+      </div>
+
+      <div class="card reveal" style="margin-top:22px;">
+        <span class="card-tag">Your practice</span><div class="card-title">Sessions logged</div>
+        <div class="practice-grid" style="margin-top:18px;">
+          <div class="practice-stat">
+            <div class="practice-icon minutes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+            <div class="practice-num" id="medStatToday">0</div>
+            <div class="practice-lab">min today</div>
+          </div>
+          <div class="practice-stat">
+            <div class="practice-icon sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div>
+            <div class="practice-num" id="medStatSessions">0</div>
+            <div class="practice-lab">sessions today</div>
+          </div>
+          <div class="practice-stat streak-stat" id="streakStatCard">
+            <div class="practice-icon streak-icon" id="streakIconWrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3-2 4-2 7a4 4 0 008 0c0-1-.5-2-1-3 2 1 3 3 3 5a6 6 0 01-12 0c0-4 3-6 4-9z"/></svg></div>
+            <div class="practice-num" id="medStatStreak">0</div>
+            <div class="practice-lab" id="streakLabel">day streak</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GROCERY ===== -->
+    <section class="view" id="view-grocery">
+      <div class="topbar"><div><h1>Smart Grocery Generator</h1><div class="sub">Built from your active meal plan.</div></div></div>
+      <div id="groceryOut"></div>
+    </section>
+
+    <!-- ===== HEALTH REPORT ===== -->
+    <section class="view" id="view-report">
+      <div class="topbar"><div><h1>Personal Health Report</h1><div class="sub">Everything compiled — ready to bring to an appointment.</div></div></div>
+      <div class="card reveal">
+        <button class="btn btn-primary" onclick="generateReport()">Generate my report</button>
+      </div>
+      <div id="reportOut" style="margin-top:22px;"></div>
+    </section>
+
+    <!-- ===== KABIR.AI ===== -->
+    <section class="view" id="view-learn">
+      <div class="topbar">
+        <div><h1>Kabir.AI</h1><div class="sub">Your personal AI agent — ask, plan, get suggestions, or just talk. Health included.</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="clearKabirChat()">Clear chat</button>
+      </div>
+      <div class="card reveal kabir-card">
+        <div class="kabir-messages" id="kabirMessages">
+          <div class="kabir-empty" id="kabirEmpty">
+            <div class="kabir-empty-orb"><span>K</span></div>
+            <div class="kabir-empty-title" id="kabirEmptyTitle">Hey, I'm Kabir.</div>
+            <div class="kabir-empty-sub">I'm not just here for your logged data — ask me anything, plan something, get advice, or just chat. Health is one of the things I'm good at, not the only thing.</div>
+            <div class="chip-row" id="kabirSuggestions" style="justify-content:center; margin-top:16px;"></div>
+          </div>
+        </div>
+        <div class="kabir-input-row">
+          <input type="text" id="kabirInput" placeholder="Message Kabir…" autocomplete="off" onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendKabir(); }">
+          <button class="btn btn-primary btn-sm" id="kabirSendBtn" onclick="sendKabir()">Send</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* ============ ICON SET ============ */
+const ICONS = {
+  dashboard:'<circle cx="12" cy="12" r="1"/><path d="M12 12l5-3M4 12a8 8 0 1116 0"/>',
+  profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  diet:'<path d="M5 2v20M5 2c-2 3-2 6 0 8M19 2v20M15 2v8a4 4 0 004 4"/>',
+  food:'<path d="M3 3l18 18M12 3a4 4 0 00-4 4v6h8V7a4 4 0 00-4-4zM8 13v8M16 13v8"/>',
+  meds:'<rect x="3" y="10" width="18" height="7" rx="3.5" transform="rotate(-25 12 13)"/><line x1="9" y1="12" x2="15" y2="14" transform="rotate(-25 12 13)"/>',
+  safety:'<path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/>',
+  symptoms:'<path d="M3 12h4l2-7 4 14 2-7h6"/>',
+  labs:'<path d="M9 2v6L4 20a2 2 0 002 2h12a2 2 0 002-2L15 8V2M9 2h6"/>',
+  grocery:'<circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M2 2h3l2.6 12.4a2 2 0 002 1.6h8.8a2 2 0 002-1.6L22 7H6"/>',
+  report:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6M9 9h1"/>',
+  kabir:'<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/>',
+  meditate:'<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" opacity="0.55"/><circle cx="12" cy="12" r="10.3" opacity="0.3"/>'
+};
+function svgIcon(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;}
+
+const NAV = [
+  {id:'dashboard', label:'Dashboard', icon:'dashboard'},
+  {id:'profile', label:'Health Profile', icon:'profile'},
+  {id:'diet', label:'Diet Planner', icon:'diet'},
+  {id:'food', label:'Food Analyzer', icon:'food'},
+  {id:'grocery', label:'Grocery List', icon:'grocery'},
+  {id:'meds', label:'Medications', icon:'meds'},
+  {id:'safety', label:'Safety Checker', icon:'safety'},
+  {id:'symptoms', label:'Symptom Journal', icon:'symptoms'},
+  {id:'labs', label:'Lab Reports', icon:'labs'},
+  {id:'meditate', label:'Meditation', icon:'meditate'},
+  {id:'report', label:'Health Report', icon:'report'},
+  {id:'learn', label:'Kabir.AI', icon:'kabir'},
+];
+const navlist = document.getElementById('navlist');
+const navPill = document.createElement('div');
+navPill.className = 'nav-pill';
+navlist.appendChild(navPill);
+NAV.forEach((n,i)=>{
+  const li = document.createElement('li');
+  li.className = 'navitem' + (i===0?' active':'');
+  li.dataset.view = n.id;
+  li.innerHTML = svgIcon(n.icon) + '<span>'+n.label+'</span>';
+  li.onclick = ()=>switchView(n.id);
+  navlist.appendChild(li);
+});
+
+function positionNavPill(){
+  const active = document.querySelector('.navitem.active');
+  if(!active) return;
+  navPill.style.opacity = '1';
+  navPill.style.transform = `translateY(${active.offsetTop}px)`;
+}
+function switchView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
+  document.getElementById('sidebar').classList.remove('open');
+  positionNavPill();
+  observeReveals();
+  attachCardSpotlights();
+  if(id==='dashboard') renderDashboard();
+  if(id==='diet') renderDiet();
+  if(id==='meds') renderMeds();
+  if(id==='safety') runSafetyCheck();
+  if(id==='symptoms') renderSymptomChart();
+  if(id==='meditate') renderMeditationStats();
+  if(id==='grocery') renderGrocery();
+  if(id==='profile') setTimeout(initPremiumPills, 50);
+  if(id==='meditate') setTimeout(initPremiumPills, 50);
+}
+
+/* ============ CARD SPOTLIGHT (mouse-tracking glow) ============ */
+function attachCardSpotlights(){
+  document.querySelectorAll('.view.active .card:not([data-spot])').forEach(card=>{
+    card.dataset.spot = '1';
+    card.addEventListener('mousemove', e=>{
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX-r.left)+'px');
+      card.style.setProperty('--my', (e.clientY-r.top)+'px');
+    });
+  });
+}
+
+/* ============ BUTTON RIPPLE ============ */
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.btn');
+  if(!btn) return;
+  const r = btn.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  const size = Math.max(r.width, r.height) * 1.6;
+  ripple.style.cssText = `position:absolute; left:${e.clientX-r.left-size/2}px; top:${e.clientY-r.top-size/2}px; width:${size}px; height:${size}px; border-radius:50%; background:rgba(255,255,255,0.35); pointer-events:none; transform:scale(0); animation:rippleOut 0.6s ease-out forwards;`;
+  btn.appendChild(ripple);
+  setTimeout(()=>ripple.remove(), 650);
+});
+const rippleStyle = document.createElement('style');
+rippleStyle.textContent = '@keyframes rippleOut{to{transform:scale(1); opacity:0;}}';
+document.head.appendChild(rippleStyle);
+window.addEventListener('resize', positionNavPill);
+
+/* ============ THEME ============ */
+function toggleTheme(){
+  const html = document.documentElement;
+  const now = html.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', now);
+  localStorage.setItem('__vital_theme_pref', now); // ok: purely cosmetic, not app data
+  drawBackground();
+}
+(function initTheme(){
+  const pref = localStorage.getItem('__vital_theme_pref');
+  if(pref) document.documentElement.setAttribute('data-theme', pref);
+})();
+
+/* ============ TOAST ============ */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ============ VITALS LOADER ============ */
+const LOADER_MESSAGES = ['Reading vitals','Syncing data','Cross-checking','Almost there'];
+let loaderMsgTimer = null;
+function showLoader(msg){
+  const overlay = document.getElementById('loaderOverlay');
+  const textEl = document.getElementById('loaderText');
+  const setMsg = m => { textEl.innerHTML = m + '<span class="loader-dots"><span>.</span><span>.</span><span>.</span></span>'; };
+  setMsg(msg || LOADER_MESSAGES[0]);
+  overlay.classList.add('show');
+  clearInterval(loaderMsgTimer);
+}
+function hideLoader(){
+  document.getElementById('loaderOverlay').classList.remove('show');
+  clearInterval(loaderMsgTimer);
+}
+async function withLoader(msg, workFn){
+  showLoader(msg);
+  const start = performance.now();
+  const MIN_MS = 750;
+  try{
+    return await workFn();
+  } finally {
+    const elapsed = performance.now() - start;
+    if(elapsed < MIN_MS) await new Promise(r=>setTimeout(r, MIN_MS - elapsed));
+    hideLoader();
+  }
+}
+
+/* ============ PRINT MODAL (in-app, no popup blocker risk) ============ */
+function openPrintModal(html){
+  document.getElementById('printModalBody').innerHTML = html;
+  document.getElementById('printModalOverlay').classList.add('show');
+}
+function closePrintModal(){
+  document.getElementById('printModalOverlay').classList.remove('show');
+}
+
+/* ============ REVEAL ON SCROLL ============ */
+let io;
+function observeReveals(){
+  if(io) io.disconnect();
+  io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); });
+  },{threshold:0.1});
+  document.querySelectorAll('.view.active .reveal').forEach(el=>io.observe(el));
+}
+
+/* ============ CANVAS BACKGROUND ============ */
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let nodes = [];
+function initBackground(){
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  nodes = Array.from({length:46}, ()=>({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    vx:(Math.random()-0.5)*0.28, vy:(Math.random()-0.5)*0.28, r: Math.random()*1.6+0.6
+  }));
+}
+function drawBackground(){
+  const dark = document.documentElement.getAttribute('data-theme')!=='light';
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const col = dark ? '79,242,232' : '15,184,172';
+  nodes.forEach(n=>{
+    n.x+=n.vx; n.y+=n.vy;
+    if(n.x<0||n.x>canvas.width) n.vx*=-1;
+    if(n.y<0||n.y>canvas.height) n.vy*=-1;
+  });
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<130){
+        ctx.strokeStyle = `rgba(${col},${(1-d/130)*(dark?0.14:0.10)})`;
+        ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y); ctx.stroke();
+      }
+    }
+  }
+  nodes.forEach(n=>{
+    ctx.fillStyle = `rgba(${col},${dark?0.55:0.4})`;
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,7); ctx.fill();
+  });
+  requestAnimationFrame(drawBackground);
+}
+initBackground(); drawBackground();
+window.addEventListener('resize', initBackground);
+
+/* ============ STORAGE HELPERS (browser localStorage — persists per-browser, this file must be opened from the same location each time) ============ */
+async function loadData(key, fallback){
+  try{
+    const raw = localStorage.getItem('vital_'+key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  } catch(e){ console.error('load error', key, e); return fallback; }
+}
+async function saveData(key, value){
+  try{
+    localStorage.setItem('vital_'+key, JSON.stringify(value));
+    return true;
+  } catch(e){
+    console.error('storage error', key, e);
+    toast('Could not save — storage may be full or blocked');
+    return false;
+  }
+}
+
+let STATE = {
+  profile: null,
+  targets: null,
+  weightHistory: [],
+  dailyLogs: {}, // date -> {water, sleep, steps}
+  foodLogs: {}, // date -> [{text,cal,protein,carbs,fat,fiber}]
+  meds: [],
+  medLog: {}, // date -> {medId: {morning:bool,...}}
+  symptoms: [], // [{date, headache, fatigue, pain, mood, appetite, digestion, temp, sleep, notes}]
+  labs: [],
+  dietPlan: null,
+  kabirChat: [], // [{role:'user'|'assistant', content}]
+  meditationLog: {} // date -> {minutes, sessions}
+};
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+async function initApp(){
+  STATE.profile = await loadData('profile', null);
+  STATE.targets = await loadData('targets', null);
+  STATE.weightHistory = await loadData('weightHistory', []);
+  STATE.dailyLogs = await loadData('dailyLogs', {});
+  STATE.foodLogs = await loadData('foodLogs', {});
+  STATE.meds = await loadData('meds', []);
+  STATE.medLog = await loadData('medLog', {});
+  STATE.symptoms = await loadData('symptoms', []);
+  STATE.labs = await loadData('labs', []);
+  STATE.dietPlan = await loadData('dietPlan', null);
+  STATE.kabirChat = await loadData('kabirChat', []);
+  STATE.meditationLog = await loadData('meditationLog', {});
+
+  if(STATE.profile){
+    document.getElementById('pName').value = STATE.profile.name||'';
+    document.getElementById('pAge').value = STATE.profile.age||'';
+    document.getElementById('pSex').value = STATE.profile.sex||'male';
+    document.getElementById('pHeight').value = STATE.profile.height||'';
+    document.getElementById('pWeight').value = STATE.profile.weight||'';
+    document.getElementById('pActivity').value = STATE.profile.activity||'1.55';
+    document.getElementById('pAllergies').value = STATE.profile.allergies||'';
+    document.getElementById('pSleepTarget').value = STATE.profile.sleepTarget||8;
+    document.getElementById('pEmName').value = STATE.profile.emName||'';
+    document.getElementById('pEmPhone').value = STATE.profile.emPhone||'';
+    setChipActive('pGoalRow', String(STATE.profile.goal));
+    setChipActive('pFoodRow', STATE.profile.foodPref);
+    renderProfileSummary();
+  }
+
+  document.getElementById('dbDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short', day:'numeric', month:'short'});
+  renderDashboardGreeting();
+  const dl = STATE.dailyLogs[todayStr()] || {water:0, sleep:7, steps:0};
+  document.getElementById('sleepSlider').value = dl.sleep||7; document.getElementById('sleepVal').textContent = dl.sleep||7;
+  applySleepVisual(dl.sleep||7);
+  document.getElementById('stepsInput').value = dl.steps||'';
+  renderWaterGlasses();
+
+  populateLabTestSelect();
+  renderKabirSuggestions();
+  renderKabirHistory();
+  personalizeKabirGreeting();
+  renderMeditationStats();
+  resetMeditation();
+  renderDashboard();
+  observeReveals();
+}
+
+function setChipActive(rowId, val){
+  document.querySelectorAll('#'+rowId+' .chip').forEach(c=>c.classList.toggle('active', c.dataset.v===String(val)));
+  positionPillSlide(document.getElementById(rowId));
+}
+
+/* ---- Premium sliding pill indicator (Goal / Food preference rows) ---- */
+function positionPillSlide(row){
+  if(!row || !row.classList.contains('premium')) return;
+  let slide = row.querySelector('.pill-slide');
+  if(!slide){ slide = document.createElement('div'); slide.className = 'pill-slide'; row.prepend(slide); }
+  const active = row.querySelector('.chip.active');
+  if(!active) return;
+  slide.style.left = active.offsetLeft + 'px';
+  slide.style.width = active.offsetWidth + 'px';
+  slide.classList.remove('moving'); void slide.offsetWidth; slide.classList.add('moving');
+}
+function initPremiumPills(){
+  document.querySelectorAll('.chip-row.premium').forEach(row=>positionPillSlide(row));
+}
+window.addEventListener('resize', ()=>{ clearTimeout(window.__pillRz); window.__pillRz = setTimeout(initPremiumPills, 150); });
+
+document.querySelectorAll('.chip-row').forEach(row=>{
+  row.addEventListener('click', e=>{
+    const chip = e.target.closest('.chip'); if(!chip) return;
+    if(row.id==='medScheduleRow'){ chip.classList.toggle('active'); return; } // multi-select
+    row.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    positionPillSlide(row);
+  });
+});
+
+/* ============ PROFILE ============ */
+function calcTargets(p){
+  const sexConstant = p.sex==='male' ? 5 : (p.sex==='female' ? -161 : -78); // 'other' uses the midpoint of the male/female Mifflin-St Jeor constant — the standard approach when a formula only defines two sexes
+  let bmr = 10*p.weight+6.25*p.height-5*p.age+sexConstant;
+  const tdee = bmr * p.activity;
+  const target = Math.max(1200, tdee + p.goal);
+  const bmi = p.weight/Math.pow(p.height/100,2);
+  const proteinG = Math.round(1.8*p.weight);
+  const proteinKcal = proteinG*4;
+  const fatKcal = target*0.25; const fatG = Math.round(fatKcal/9);
+  const carbsKcal = Math.max(target-proteinKcal-fatKcal,0); const carbsG = Math.round(carbsKcal/4);
+  const fiberG = Math.round(target/1000*14);
+  return {bmr:Math.round(bmr), tdee:Math.round(tdee), calories:Math.round(target), bmi:+bmi.toFixed(1), proteinG, carbsG, fatG, fiberG, water: 8};
+}
+
+function timeOfDayGreeting(){
+  const h = new Date().getHours();
+  if(h<5) return 'Still up';
+  if(h<12) return 'Good morning';
+  if(h<17) return 'Good afternoon';
+  if(h<21) return 'Good evening';
+  return 'Good night';
+}
+function personalizeKabirGreeting(){
+  const el = document.getElementById('kabirEmptyTitle');
+  if(!el) return;
+  const name = STATE.profile && STATE.profile.name ? STATE.profile.name.split(' ')[0] : '';
+  el.textContent = name ? `Hey ${name}, I'm Kabir.` : "Hey, I'm Kabir.";
+}
+function renderDashboardGreeting(){
+  const el = document.getElementById('dbGreeting');
+  if(!el) return;
+  const name = STATE.profile && STATE.profile.name ? STATE.profile.name.split(' ')[0] : '';
+  el.textContent = name ? `${timeOfDayGreeting()}, ${name}` : timeOfDayGreeting();
+}
+async function saveProfile(){
+  const age=+document.getElementById('pAge').value, height=+document.getElementById('pHeight').value, weight=+document.getElementById('pWeight').value;
+  if(!age||!height||!weight){ toast('Fill in age, height and weight'); return; }
+  const goal = +document.querySelector('#pGoalRow .chip.active').dataset.v;
+  const foodPref = document.querySelector('#pFoodRow .chip.active').dataset.v;
+  const profile = {
+    name: document.getElementById('pName').value.trim(),
+    age, sex: document.getElementById('pSex').value, height, weight,
+    activity: +document.getElementById('pActivity').value, goal, foodPref,
+    allergies: document.getElementById('pAllergies').value,
+    sleepTarget: +document.getElementById('pSleepTarget').value || 8,
+    emName: document.getElementById('pEmName').value, emPhone: document.getElementById('pEmPhone').value
+  };
+  await withLoader('Calculating your targets', async ()=>{
+  STATE.profile = profile;
+  STATE.targets = calcTargets(profile);
+  await saveData('profile', profile);
+  await saveData('targets', STATE.targets);
+  if(!STATE.weightHistory.length || STATE.weightHistory[STATE.weightHistory.length-1].w !== weight){
+    STATE.weightHistory.push({date: todayStr(), w: weight});
+    await saveData('weightHistory', STATE.weightHistory);
+  }
+  });
+  renderProfileSummary();
+  renderDashboardGreeting();
+  personalizeKabirGreeting();
+  toast('Profile saved — targets recalculated');
+}
+
+const GAUGE_ARC_LEN = Math.PI*80; // circumference of the semicircle path radius 80
+const GAUGE_TICKS = [
+  {o:[20,100], i:[36,100]},
+  {o:[43.4,43.4], i:[54.7,54.7]},
+  {o:[100,20], i:[100,36]},
+  {o:[156.6,43.4], i:[145.3,54.7]},
+  {o:[180,100], i:[164,100]}
+];
+function gaugeSVG(key, color, soft){
+  const ticks = GAUGE_TICKS.map(t=>`<line class="gauge-tick" x1="${t.i[0]}" y1="${t.i[1]}" x2="${t.o[0]}" y2="${t.o[1]}"/>`).join('');
+  return `<svg class="gauge-svg" viewBox="0 0 200 112">
+    <path class="gauge-track" d="M20,100 A80,80 0 0,1 180,100" stroke="${soft}"/>
+    ${ticks}
+    <path class="gauge-fill" id="gaugeFill_${key}" d="M20,100 A80,80 0 0,1 180,100" stroke="${color}" style="stroke-dasharray:${GAUGE_ARC_LEN}; stroke-dashoffset:${GAUGE_ARC_LEN};"/>
+    <g class="gauge-needle-wrap" id="gaugeNeedle_${key}" style="transform:rotate(-90deg);">
+      <polygon class="gauge-needle" points="100,33 96,98 104,98"/>
+      <circle class="gauge-hub-ring" cx="100" cy="100" r="8"/>
+      <circle class="gauge-hub" cx="100" cy="100" r="4.5"/>
+      <circle class="gauge-hub-shine" cx="98.3" cy="98.3" r="1.4"/>
+    </g>
+  </svg>`;
+}
+function gaugeCard(key, {value, decimals=0, unit='', label, sub, min, max, color, soft}){
+  const pct = Math.min(Math.max((value-min)/(max-min), 0), 1);
+  return {
+    html: `<div class="gauge-card" id="gaugeCard_${key}">
+      ${gaugeSVG(key, color, soft)}
+      <div class="gauge-value" id="gaugeVal_${key}" style="color:${color}; filter:drop-shadow(0 0 12px ${soft});">0<span class="unit">${unit}</span></div>
+      <div class="gauge-label">${label}</div>
+      <div class="gauge-sub" id="gaugeSub_${key}" style="color:${color}">${sub}</div>
+      <div class="gauge-range"><span>${min}${unit}</span><span>${max}${unit}</span></div>
+    </div>`,
+    key, value, decimals, pct, color, unit
+  };
+}
+function animateCountUp(elId, target, decimals, unit){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const duration = 1300, start = performance.now();
+  function frame(now){
+    const t = Math.min((now-start)/duration, 1);
+    const eased = 1-Math.pow(1-t, 3);
+    const v = target*eased;
+    el.innerHTML = (decimals ? v.toFixed(decimals) : Math.round(v)) + `<span class="unit">${unit}</span>`;
+    if(t<1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function animateGaugesIn(gauges){
+  // let the DOM paint the 0% state first, then animate to real values
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    gauges.forEach(g=>{
+      const fill = document.getElementById('gaugeFill_'+g.key);
+      const needle = document.getElementById('gaugeNeedle_'+g.key);
+      const card = document.getElementById('gaugeCard_'+g.key);
+      if(fill){
+        fill.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1)';
+        fill.style.strokeDashoffset = GAUGE_ARC_LEN*(1-g.pct);
+      }
+      if(needle){
+        needle.style.transition = 'transform 1.4s cubic-bezier(.16,1,.3,1)';
+        needle.style.transform = `rotate(${-90+g.pct*180}deg)`;
+      }
+      if(card){ card.classList.remove('pulse'); void card.offsetWidth; card.classList.add('pulse'); }
+      animateCountUp('gaugeVal_'+g.key, g.value, g.decimals, g.unit);
+    });
+  }));
+}
+function bmiZone(bmi){
+  if(bmi<18.5) return {color:'var(--c4)', soft:'var(--c4-soft)', label:'Underweight'};
+  if(bmi<25) return {color:'var(--success)', soft:'var(--success-soft)', label:'Normal range'};
+  if(bmi<30) return {color:'var(--c4)', soft:'var(--c4-soft)', label:'Overweight'};
+  return {color:'var(--danger)', soft:'var(--danger-soft)', label:'Obese range'};
+}
+function renderProfileSummary(){
+  if(!STATE.targets) return;
+  const t = STATE.targets;
+  const bz = bmiZone(t.bmi);
+  const gauges = [
+    gaugeCard('cal', {value:t.calories, unit:' kcal', label:'Daily calories', sub:'Energy target', min:1200, max:3500, color:'var(--c1)', soft:'var(--c1-soft)'}),
+    gaugeCard('protein', {value:t.proteinG, unit:'g', label:'Protein', sub:'Per day', min:30, max:250, color:'var(--c2)', soft:'var(--c2-soft)'}),
+    gaugeCard('carbs', {value:t.carbsG, unit:'g', label:'Carbs', sub:'Per day', min:50, max:500, color:'var(--c4)', soft:'var(--c4-soft)'}),
+    gaugeCard('fat', {value:t.fatG, unit:'g', label:'Fat', sub:'Per day', min:20, max:150, color:'var(--c3)', soft:'var(--c3-soft)'}),
+    gaugeCard('bmi', {value:t.bmi, decimals:1, label:'BMI', sub:bz.label, min:15, max:40, color:bz.color, soft:bz.soft}),
+    gaugeCard('bmr', {value:t.bmr, unit:' kcal', label:'BMR', sub:'Base metabolic rate', min:1000, max:2600, color:'var(--c1)', soft:'var(--c1-soft)'}),
+  ];
+  document.getElementById('profileSummary').innerHTML = `
+    <div class="card reveal in">
+      <span class="card-tag">Computed</span><div class="card-title">Your daily targets</div>
+      <div class="grid grid-3" style="margin-top:18px; gap:14px;">
+        ${gauges.map(g=>g.html).join('')}
+      </div>
+    </div>`;
+  animateGaugesIn(gauges);
+}
+
+/* ============ DASHBOARD ============ */
+function drawWeightChart(){
+  const c = document.getElementById('weightChart');
+  if(!c) return;
+  c.width = c.clientWidth * 2; c.height = 160*2;
+  const g = c.getContext('2d'); g.scale(2,2);
+  const w = c.clientWidth, h=160;
+  g.clearRect(0,0,w,h);
+  const dark = document.documentElement.getAttribute('data-theme')!=='light';
+  const data = STATE.weightHistory.slice(-10);
+  if(data.length<2){
+    g.fillStyle = dark? '#525C74':'#98A1B8'; g.font='13px Inter'; g.fillText('Log a few weights to see your trend', 10, h/2);
+    return;
+  }
+  const vals = data.map(d=>d.w);
+  const min = Math.min(...vals)-1, max = Math.max(...vals)+1;
+  const stepX = (w-40)/(data.length-1);
+  g.beginPath();
+  data.forEach((d,i)=>{
+    const x = 20+i*stepX;
+    const y = h-20-((d.w-min)/(max-min))*(h-40);
+    if(i===0) g.moveTo(x,y); else g.lineTo(x,y);
+  });
+  const grad = g.createLinearGradient(0,0,w,0);
+  grad.addColorStop(0,'#4FF2E8'); grad.addColorStop(1,'#A78BFA');
+  g.strokeStyle = grad; g.lineWidth=2.4; g.lineCap='round'; g.lineJoin='round'; g.stroke();
+  data.forEach((d,i)=>{
+    const x = 20+i*stepX; const y = h-20-((d.w-min)/(max-min))*(h-40);
+    g.beginPath(); g.arc(x,y,3.5,0,7); g.fillStyle = dark?'#0D1220':'#fff'; g.fill(); g.lineWidth=2; g.strokeStyle='#4FF2E8'; g.stroke();
+  });
+}
+
+function renderDashboard(){
+  const t = STATE.targets;
+  document.getElementById('dCalTarget').textContent = t? t.calories : '—';
+  document.getElementById('dProteinTarget').textContent = t? t.proteinG : '—';
+  const todayFoods = STATE.foodLogs[todayStr()] || [];
+  const calSum = todayFoods.reduce((s,f)=>s+f.cal,0), protSum = todayFoods.reduce((s,f)=>s+f.protein,0);
+  document.getElementById('dCal').textContent = Math.round(calSum);
+  document.getElementById('dProtein').textContent = Math.round(protSum)+'g';
+  document.getElementById('dCalBar').style.width = t? Math.min(calSum/t.calories*100,100)+'%':'0%';
+  document.getElementById('dProteinBar').style.width = t? Math.min(protSum/t.proteinG*100,100)+'%':'0%';
+
+  const dl = STATE.dailyLogs[todayStr()] || {water:0};
+  const waterTarget = (t && t.water) || 8;
+  document.getElementById('dWater').textContent = dl.water||0;
+  document.getElementById('dWaterTarget').textContent = waterTarget;
+  const waterPct = Math.min((dl.water||0)/waterTarget*100,100);
+  document.getElementById('dWaterBar').style.width = waterPct+'%';
+  const wave = document.getElementById('waterWave');
+  if(wave){
+    wave.style.height = waterPct+'%';
+    if(waterPct>=100){ wave.classList.remove('full'); void wave.offsetWidth; wave.classList.add('full'); }
+  }
+
+  const medsToday = medsScheduledToday();
+  const log = STATE.medLog[todayStr()] || {};
+  let total=0, taken=0;
+  medsToday.forEach(m=>m.schedule.forEach(s=>{ total++; if(log[m.id] && log[m.id][s]) taken++; }));
+  document.getElementById('dMedAdh').textContent = total? Math.round(taken/total*100)+'%' : '—';
+  document.getElementById('dMedBar').style.width = total? (taken/total*100)+'%':'0%';
+
+  const redflag = STATE.symptoms.length ? checkRedFlag(STATE.symptoms[STATE.symptoms.length-1]) : null;
+  document.getElementById('dashRedflag').innerHTML = redflag ? bannerHTML('danger', redflag) : '';
+
+  drawWeightChart();
+}
+async function logWeight(){
+  const v = +document.getElementById('newWeight').value;
+  if(!v){ toast('Enter a weight'); return; }
+  await withLoader('Logging weight', async ()=>{
+    STATE.weightHistory.push({date: todayStr(), w: v});
+    await saveData('weightHistory', STATE.weightHistory);
+  });
+  document.getElementById('newWeight').value='';
+  drawWeightChart(); toast('Weight logged');
+}
+/* ---- Water: glass tally UI ---- */
+function renderWaterGlasses(){
+  const wrap = document.getElementById('waterGlasses');
+  if(!wrap) return;
+  const target = (STATE.targets && STATE.targets.water) || 8;
+  const dl = STATE.dailyLogs[todayStr()] || {};
+  const count = dl.water || 0;
+  const goalLabel = document.getElementById('waterGoalLabel');
+  if(goalLabel) goalLabel.textContent = `${count} / ${target}`;
+  let html = '';
+  for(let i=0;i<target;i++){
+    const filled = i < count;
+    html += `<div class="glass${filled?' filled':''}" onclick="setWater(${i+1})" title="${i+1} glass${i+1>1?'es':''}">
+      <svg class="glass-svg" viewBox="0 0 24 32">
+        <clipPath id="glassClip${i}"><path d="M4 2 H20 L18 30 H6 Z"/></clipPath>
+        <path class="glass-outline" d="M4 2 H20 L18 30 H6 Z"/>
+        <g class="glass-water" clip-path="url(#glassClip${i})">
+          <rect class="water-body" x="2" y="7" width="20" height="25"/>
+          <path class="wave-a" d="M-8 6 Q-4 3 0 6 T8 6 T16 6 T24 6 T32 6 V32 H-8 Z"/>
+          <path class="wave-b" d="M-8 7 Q-4 4.5 0 7 T8 7 T16 7 T24 7 T32 7 V32 H-8 Z"/>
+          <circle class="bubble" cx="9" cy="22" r="0.9"/>
+          <circle class="bubble" cx="14" cy="17" r="0.7" style="animation-delay:0.9s"/>
+        </g>
+      </svg>
+    </div>`;
+  }
+  wrap.innerHTML = html;
+}
+async function setWater(n){
+  const dl = STATE.dailyLogs[todayStr()] || {};
+  const current = dl.water||0;
+  const target = (STATE.targets && STATE.targets.water) || 8;
+  const wasBelow = current < target;
+  const val = Math.max(0, current===n ? n-1 : n);
+  STATE.dailyLogs[todayStr()] = {...dl, water: val};
+  await saveData('dailyLogs', STATE.dailyLogs);
+  renderWaterGlasses();
+  renderDashboard();
+  const lastGlass = document.querySelector(`#waterGlasses .glass:nth-child(${val})`);
+  if(lastGlass){ lastGlass.classList.add('just-filled'); setTimeout(()=>lastGlass.classList.remove('just-filled'), 450); }
+  if(wasBelow && val>=target) toast('Water goal reached! 💧');
+}
+
+/* ---- Sleep: realistic red→green→yellow scale with live emoji ---- */
+const SLEEP_STOPS = [
+  {v:1,  h:350, s:75, l:55}, // exhausted — deep red
+  {v:4,  h:14,  s:82, l:55}, // tired — orange-red
+  {v:6,  h:42,  s:80, l:56}, // under-slept — amber
+  {v:7,  h:150, s:60, l:46}, // refreshed — full green
+  {v:8,  h:150, s:60, l:46}, // refreshed — full green (plateau)
+  {v:9,  h:78,  s:62, l:52}, // groggy — yellow-green
+  {v:10, h:46,  s:88, l:58}, // fatigue — yellow
+  {v:11, h:38,  s:87, l:54}, // deeper fatigue — yellow-orange
+  {v:12, h:26,  s:82, l:50}  // excessive sleep — deep orange
+];
+function sleepColor(v){
+  v = Math.min(Math.max(+v,1),12);
+  let a = SLEEP_STOPS[0], b = SLEEP_STOPS[SLEEP_STOPS.length-1];
+  for(let i=0;i<SLEEP_STOPS.length-1;i++){
+    if(v>=SLEEP_STOPS[i].v && v<=SLEEP_STOPS[i+1].v){ a=SLEEP_STOPS[i]; b=SLEEP_STOPS[i+1]; break; }
+  }
+  const t = (v-a.v)/((b.v-a.v)||1);
+  const h = a.h+(b.h-a.h)*t, s = a.s+(b.s-a.s)*t, l = a.l+(b.l-a.l)*t;
+  return `hsl(${Math.round(h)},${Math.round(s)}%,${Math.round(l)}%)`;
+}
+function sleepMeta(v){
+  v = +v;
+  if(v<=3) return {emoji:'😫', label:'Exhausted'};
+  if(v<=5) return {emoji:'😴', label:'Tired'};
+  if(v===6) return {emoji:'🙂', label:'A bit short'};
+  if(v<=8) return {emoji:'😄', label:'Refreshed'};
+  if(v===9) return {emoji:'🥱', label:'Slightly groggy'};
+  if(v===10) return {emoji:'😪', label:'Oversleep fatigue'};
+  return {emoji:'🥴', label:'Excessive sleep'};
+}
+function applySleepVisual(v){
+  v = +v;
+  const color = sleepColor(v);
+  const meta = sleepMeta(v);
+  const slider = document.getElementById('sleepSlider');
+  const val = document.getElementById('sleepVal');
+  const badge = document.getElementById('sleepEmojiBadge');
+  const emojiEl = document.getElementById('sleepEmoji');
+  const statusEl = document.getElementById('sleepStatus');
+  if(!slider) return;
+  const pct = ((v-1)/11)*100;
+  slider.style.setProperty('--thumb-color', color);
+  slider.style.background = `linear-gradient(90deg, ${color} 0%, ${color} ${pct}%, var(--surface2) ${pct}%, var(--surface2) 100%)`;
+  if(val) val.style.color = color;
+  if(badge){
+    badge.style.setProperty('--sleep-color', color);
+    badge.style.setProperty('--sleep-soft', color.replace('hsl(','hsla(').replace(')',',0.16)'));
+    badge.style.setProperty('--sleep-glow', color.replace('hsl(','hsla(').replace(')',',0.55)'));
+    badge.classList.toggle('glow', v>=7 && v<=8);
+  }
+  if(statusEl){ statusEl.textContent = meta.label; statusEl.style.color = color; }
+  if(emojiEl && emojiEl.dataset.emoji !== meta.emoji){
+    emojiEl.textContent = meta.emoji;
+    emojiEl.dataset.emoji = meta.emoji;
+    emojiEl.classList.remove('pop'); void emojiEl.offsetWidth; emojiEl.classList.add('pop');
+  }
+}
+async function updateSleep(v){
+  v = +v;
+  document.getElementById('sleepVal').textContent = v;
+  applySleepVisual(v);
+  STATE.dailyLogs[todayStr()] = {...(STATE.dailyLogs[todayStr()]||{}), sleep:v};
+  await saveData('dailyLogs', STATE.dailyLogs);
+}
+async function updateSteps(v){
+  STATE.dailyLogs[todayStr()] = {...(STATE.dailyLogs[todayStr()]||{}), steps:+v};
+  await saveData('dailyLogs', STATE.dailyLogs);
+}
+
+function bannerHTML(type, text){
+  const icon = type==='danger' ? '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+  return `<div class="banner banner-${type}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg><div>${text}</div></div>`;
+}
+
+/* ============ DIET PLANNER ============ */
+const FOOD_DB = {
+  'roti':{cal:70,protein:3,carbs:15,fat:0.4,fiber:2,unit:'piece'},
+  'chapati':{cal:70,protein:3,carbs:15,fat:0.4,fiber:2,unit:'piece'},
+  'rice':{cal:200,protein:4,carbs:45,fat:0.4,fiber:0.6,unit:'cup'},
+  'dal':{cal:230,protein:18,carbs:40,fat:1,fiber:15,unit:'cup'},
+  'curd':{cal:150,protein:8,carbs:11,fat:8,fiber:0,unit:'cup'},
+  'yogurt':{cal:150,protein:8,carbs:11,fat:8,fiber:0,unit:'cup'},
+  'paneer':{cal:265,protein:18,carbs:1.2,fat:20,fiber:0,unit:'100g'},
+  'chicken':{cal:1.65,protein:0.31,carbs:0,fat:0.036,fiber:0,unit:'gram'},
+  'egg':{cal:78,protein:6,carbs:0.6,fat:5,fiber:0,unit:'piece'},
+  'banana':{cal:105,protein:1.3,carbs:27,fat:0.4,fiber:3.1,unit:'piece'},
+  'milk':{cal:150,protein:8,carbs:12,fat:8,fiber:0,unit:'cup'},
+  'oats':{cal:166,protein:6,carbs:28,fat:3.6,fiber:4,unit:'cup'},
+  'sabzi':{cal:120,protein:4,carbs:15,fat:5,fiber:4,unit:'cup'},
+  'vegetable':{cal:120,protein:4,carbs:15,fat:5,fiber:4,unit:'cup'},
+  'bread':{cal:80,protein:3,carbs:15,fat:1,fiber:1,unit:'slice'},
+  'apple':{cal:95,protein:0.5,carbs:25,fat:0.3,fiber:4.4,unit:'piece'},
+  'peanut':{cal:170,protein:7,carbs:5,fat:14,fiber:2.4,unit:'handful'},
+  'sprouts':{cal:100,protein:7,carbs:17,fat:0.6,fiber:5,unit:'cup'},
+  'poha':{cal:250,protein:5,carbs:45,fat:6,fiber:2,unit:'plate'},
+  'idli':{cal:60,protein:2,carbs:12,fat:0.2,fiber:0.5,unit:'piece'},
+  'dosa':{cal:130,protein:3,carbs:20,fat:4,fiber:1,unit:'piece'}
+};
+
+function renderDiet(){
+  const noProfile = document.getElementById('dietNoProfile');
+  if(!STATE.targets){ noProfile.style.display='flex'; document.getElementById('dietTargets').innerHTML=''; return; }
+  noProfile.style.display='none';
+  const t = STATE.targets;
+  document.getElementById('dietTargets').innerHTML = `
+    <div class="card reveal in stat-mini"><span class="card-tag">Calories</span><div class="num">${t.calories}</div><div class="lab">kcal / day</div></div>
+    <div class="card reveal in stat-mini alt"><span class="card-tag">Protein</span><div class="num">${t.proteinG}g</div><div class="lab">daily target</div></div>
+    <div class="card reveal in stat-mini"><span class="card-tag">Carbs</span><div class="num">${t.carbsG}g</div><div class="lab">daily target</div></div>
+    <div class="card reveal in stat-mini alt"><span class="card-tag">Fat / Fiber</span><div class="num">${t.fatG}g</div><div class="lab">fat · ${t.fiberG}g fiber</div></div>`;
+  if(STATE.dietPlan) renderMealPlanHTML(STATE.dietPlan);
+}
+
+const MEAL_POOLS = {
+  veg:{
+    standard:{
+      Breakfast:['Oats + banana + milk','Poha + curd','Vegetable upma','Idli + sambar','Stuffed paratha + curd'],
+      Lunch:['Dal + rice + sabzi + curd','Rajma + rice + salad','Chole + roti + salad','Mixed veg curry + rice','Kadhi + rice + papad'],
+      Snack:['Fruit + peanuts','Sprouts salad','Roasted chana','Buttermilk + nuts'],
+      Dinner:['Paneer sabzi + 2 roti','Vegetable khichdi','Dal + 2 roti + sabzi','Palak paneer + roti']
+    },
+    tight:{
+      Breakfast:['Poha','Vegetable upma','Bread + peanut butter','Sprouts chaat'],
+      Lunch:['Dal + rice + seasonal sabzi','Rajma + rice','Chole + rice','Mixed veg + rice'],
+      Snack:['Banana','Roasted chana','Seasonal fruit'],
+      Dinner:['Curd rice','Vegetable khichdi','Dal + roti','Sabzi + roti']
+    }
+  },
+  eggveg:{
+    standard:{
+      Breakfast:['Egg bhurji + 2 toast','Boiled eggs + fruit','Egg paratha','Vegetable omelette + toast'],
+      Lunch:['Dal + rice + sabzi + curd','Egg curry + rice + salad','Rajma + rice','Chole + roti'],
+      Snack:['Sprouts salad + roti','Boiled egg + fruit','Roasted chana'],
+      Dinner:['Paneer/egg curry + roti','Egg fried rice','Dal + roti + sabzi']
+    },
+    tight:{
+      Breakfast:['2 boiled eggs + toast','Egg bhurji','Bread omelette'],
+      Lunch:['Dal + rice','Egg curry + rice','Sabzi + roti'],
+      Snack:['Banana','Boiled egg'],
+      Dinner:['Egg curry + rice','Dal + roti','Curd rice']
+    }
+  },
+  nonveg:{
+    standard:{
+      Breakfast:['Egg bhurji + toast','Boiled eggs + fruit','Chicken sausage + toast','Omelette + toast'],
+      Lunch:['Chicken curry + rice + sabzi','Fish curry + rice + salad','Chicken salad wrap','Egg curry + rice'],
+      Snack:['Boiled eggs + fruit','Roasted chana','Sprouts salad'],
+      Dinner:['Fish/chicken + roti','Chicken curry + rice','Grilled chicken + salad']
+    },
+    tight:{
+      Breakfast:['2 eggs + roti','Egg bhurji','Boiled eggs'],
+      Lunch:['Chicken curry (small) + rice','Dal + rice','Egg curry + rice'],
+      Snack:['Banana','Boiled egg'],
+      Dinner:['Egg curry + rice','Chicken curry (small) + roti','Dal + roti']
+    }
+  }
+};
+const MEAL_TYPE_META = {
+  Breakfast:{icon:'☀️'}, Lunch:{icon:'🍽️'}, Snack:{icon:'🍎'}, Dinner:{icon:'🌙'}
+};
+async function generateMealPlan(){
+  if(!STATE.profile){ toast('Complete your profile first'); return; }
+  const budget = document.querySelector('#dietBudgetRow .chip.active').dataset.v;
+  const pool = MEAL_POOLS[STATE.profile.foodPref][budget];
+  const days = Array.from({length:7},(_,i)=>({
+    day:'Day '+(i+1),
+    meals:['Breakfast','Lunch','Snack','Dinner'].map(type=>({type, text:pool[type][i % pool[type].length]}))
+  }));
+  const plan = {budget, foodPref: STATE.profile.foodPref, days};
+  await withLoader('Building your meal plan', async ()=>{
+    STATE.dietPlan = plan;
+    await saveData('dietPlan', plan);
+  });
+  renderMealPlanHTML(plan);
+  toast('Week plan generated — 4 meals a day, varied across the week');
+}
+function estimateMealCal(text){
+  try{ return parseFoodText(text).reduce((s,i)=>s+i.cal,0); }catch(e){ return 0; }
+}
+function renderMealPlanHTML(plan){
+  const out = document.getElementById('mealPlanOut');
+  out.innerHTML = `
+    <div class="card reveal in" style="margin-bottom:18px;">
+      <span class="card-tag">7-day plan</span><div class="card-title">Tap a day to view</div>
+      <div class="chip-row premium diet-day-row" id="dietDayRow" style="margin-top:14px; position:relative;">
+        ${plan.days.map((d,i)=>`<div class="chip ${i===0?'active':''}" data-i="${i}">${d.day}</div>`).join('')}
+      </div>
+    </div>
+    <div id="dietDayDetail"></div>`;
+  const row = document.getElementById('dietDayRow');
+  row.addEventListener('click', e=>{
+    const chip = e.target.closest('.chip'); if(!chip) return;
+    row.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    positionPillSlide(row);
+    renderDietDayDetail(plan, +chip.dataset.i);
+  });
+  setTimeout(()=>positionPillSlide(row), 30);
+  renderDietDayDetail(plan, 0);
+}
+function renderDietDayDetail(plan, idx){
+  const day = plan.days[idx];
+  document.getElementById('dietDayDetail').innerHTML = `
+    <div class="grid grid-2 stagger">
+      ${day.meals.map(m=>{
+        const cal = Math.round(estimateMealCal(m.text));
+        return `<div class="card reveal in diet-meal-card">
+          <div class="diet-meal-head">
+            <span class="diet-meal-icon">${MEAL_TYPE_META[m.type].icon}</span>
+            <span class="diet-meal-type">${m.type}</span>
+            ${cal>0 ? `<span class="diet-meal-cal">~${cal} kcal</span>` : ''}
+          </div>
+          <div class="diet-meal-text">${m.text}</div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="logPlannedMeal('${m.text.replace(/'/g,"\\'")}')">Log this meal</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+function logPlannedMeal(text){
+  switchView('food');
+  setTimeout(()=>{
+    const input = document.getElementById('foodInput');
+    if(input){ input.value = text; input.focus(); }
+  }, 120);
+  toast('Meal loaded into Food Analyzer');
+}
+
+/* ============ FOOD ANALYZER ============ */
+const QUICK_FOODS = [
+  {key:'roti', label:'Roti', emoji:'🫓', unit:'piece', step:1},
+  {key:'rice', label:'Rice', emoji:'🍚', unit:'cup', step:0.5},
+  {key:'dal', label:'Dal', emoji:'🍲', unit:'cup', step:0.5},
+  {key:'egg', label:'Egg', emoji:'🥚', unit:'piece', step:1},
+  {key:'chicken', label:'Chicken', emoji:'🍗', unit:'gram', step:50},
+  {key:'banana', label:'Banana', emoji:'🍌', unit:'piece', step:1},
+  {key:'milk', label:'Milk', emoji:'🥛', unit:'cup', step:0.5},
+  {key:'curd', label:'Curd', emoji:'🥣', unit:'cup', step:0.5},
+  {key:'paneer', label:'Paneer', emoji:'🧀', unit:'serving', step:0.5},
+  {key:'apple', label:'Apple', emoji:'🍎', unit:'piece', step:1}
+];
+function pluralUnit(qty, unit){ return qty===1 ? unit : unit+'s'; }
+function fmtQty(qty){ return qty % 1 === 0 ? qty : qty.toFixed(1); }
+function renderFoodQuickRow(){
+  const row = document.getElementById('foodQuickRow');
+  if(!row) return;
+  row.innerHTML = QUICK_FOODS.map(f=>`<div class="food-quick-chip" id="fqc_${f.key}" onclick="expandQuickChip('${f.key}')"><span class="emoji">${f.emoji}</span><span class="fqc-label">${f.label}</span><div class="fqc-stepper" id="fqcStepper_${f.key}" onclick="event.stopPropagation()"></div></div>`).join('');
+}
+let FQC_QTY = {};
+function expandQuickChip(key){
+  QUICK_FOODS.forEach(f=>{ if(f.key!==key) collapseQuickChip(f.key); });
+  const chip = document.getElementById('fqc_'+key);
+  if(!chip || chip.classList.contains('expanded')) return;
+  const f = QUICK_FOODS.find(x=>x.key===key);
+  FQC_QTY[key] = FQC_QTY[key] || f.step;
+  chip.classList.add('expanded');
+  const stepper = document.getElementById('fqcStepper_'+key);
+  stepper.innerHTML = `
+      <button type="button" onclick="stepFoodQty('${key}',-1)">−</button>
+      <input type="number" class="fqc-qty-input" id="fqcQty_${key}" value="${fmtQty(FQC_QTY[key])}" min="${f.step}" step="${f.step}" inputmode="decimal" oninput="onFqcQtyInput('${key}', this.value)" onkeydown="if(event.key==='Enter'){ event.preventDefault(); confirmQuickAdd('${key}'); }">
+      <span class="fqc-unit" id="fqcUnit_${key}">${pluralUnit(FQC_QTY[key], f.unit)}</span>
+      <button type="button" onclick="stepFoodQty('${key}',1)">+</button>
+      <button type="button" class="fqc-confirm" onclick="confirmQuickAdd('${key}')">Add</button>`;
+  setTimeout(()=>document.getElementById('fqcQty_'+key)?.select(), 10);
+}
+function collapseQuickChip(key){
+  const chip = document.getElementById('fqc_'+key);
+  if(!chip || !chip.classList.contains('expanded')) return;
+  chip.classList.remove('expanded');
+  const stepper = document.getElementById('fqcStepper_'+key);
+  if(stepper) stepper.innerHTML = '';
+}
+function onFqcQtyInput(key, val){
+  const f = QUICK_FOODS.find(x=>x.key===key);
+  let n = parseFloat(val);
+  if(isNaN(n) || n<=0) n = f.step;
+  FQC_QTY[key] = n;
+  const unitEl = document.getElementById('fqcUnit_'+key);
+  if(unitEl) unitEl.textContent = pluralUnit(n, f.unit);
+}
+function stepFoodQty(key, dir){
+  const f = QUICK_FOODS.find(x=>x.key===key);
+  FQC_QTY[key] = Math.max(f.step, +(((FQC_QTY[key]||f.step) + dir*f.step).toFixed(2)));
+  const input = document.getElementById('fqcQty_'+key);
+  const unitEl = document.getElementById('fqcUnit_'+key);
+  if(input) input.value = fmtQty(FQC_QTY[key]);
+  if(unitEl) unitEl.textContent = pluralUnit(FQC_QTY[key], f.unit);
+  const floatClass = dir>0 ? 'float-up' : 'float-down';
+  [input, unitEl].forEach(el=>{
+    if(!el) return;
+    el.classList.remove('float-up','float-down');
+    void el.offsetWidth; // restart animation even on rapid repeated clicks
+    el.classList.add(floatClass);
+  });
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.food-quick-chip')) QUICK_FOODS.forEach(f=>collapseQuickChip(f.key));
+});
+function confirmQuickAdd(key){
+  const f = QUICK_FOODS.find(x=>x.key===key);
+  const qty = FQC_QTY[key]||f.step;
+  const input = document.getElementById('foodInput');
+  const current = input.value.trim().replace(/[+,]\s*$/,'');
+  const entry = `${fmtQty(qty)} ${pluralUnit(qty, f.unit)} ${f.label}`;
+  input.value = current ? current + ' + ' + entry : entry;
+  FQC_QTY[key] = f.step;
+  collapseQuickChip(key);
+  input.focus();
+}
+function parseFoodText(text){
+  const parts = text.split(/[+,]/).map(s=>s.trim()).filter(Boolean);
+  const results = [];
+  parts.forEach(p=>{
+    const m = p.match(/^(\d+(?:\.\d+)?)?\s*(.+)$/);
+    const qty = m && m[1] ? +m[1] : 1;
+    const name = (m ? m[2] : p).toLowerCase().trim();
+    let key = Object.keys(FOOD_DB).find(k => name.includes(k));
+    if(key){
+      const f = FOOD_DB[key];
+      results.push({name: p.trim(), matched:key, qty, cal:f.cal*qty, protein:f.protein*qty, carbs:f.carbs*qty, fat:f.fat*qty, fiber:f.fiber*qty});
+    } else {
+      results.push({name: p.trim(), matched:null, qty, cal:0, protein:0, carbs:0, fat:0, fiber:0});
+    }
+  });
+  return results;
+}
+function macroBarHTML(totals){
+  const pCal = totals.protein*4, cCal = totals.carbs*4, fCal = totals.fat*9;
+  const sum = pCal+cCal+fCal || 1;
+  const pPct = pCal/sum*100, cPct = cCal/sum*100, fPct = fCal/sum*100;
+  return `<div class="macro-bar">
+      <div class="macro-seg protein" style="width:${pPct}%"></div>
+      <div class="macro-seg carbs" style="width:${cPct}%"></div>
+      <div class="macro-seg fat" style="width:${fPct}%"></div>
+    </div>
+    <div class="macro-legend">
+      <span><i class="dot protein"></i>Protein ${Math.round(pPct)}%</span>
+      <span><i class="dot carbs"></i>Carbs ${Math.round(cPct)}%</span>
+      <span><i class="dot fat"></i>Fat ${Math.round(fPct)}%</span>
+    </div>`;
+}
+function foodItemsHTML(items){
+  return items.map(i=>`<div class="food-item-row ${i.matched?'':'unmatched'}">
+    <span class="food-item-name">${i.matched?'✅':'❓'} ${i.name}</span>
+    <span class="mono">${i.matched? Math.round(i.cal)+' kcal' : 'not recognized'}</span>
+  </div>`).join('');
+}
+async function analyzeFood(){
+  const text = document.getElementById('foodInput').value.trim();
+  if(!text){ toast('Describe what you ate'); return; }
+  await withLoader('Analyzing nutrients', async ()=>{
+  const items = parseFoodText(text);
+  const totals = items.reduce((s,i)=>({cal:s.cal+i.cal,protein:s.protein+i.protein,carbs:s.carbs+i.carbs,fat:s.fat+i.fat,fiber:s.fiber+i.fiber}),{cal:0,protein:0,carbs:0,fat:0,fiber:0});
+  const unmatched = items.filter(i=>!i.matched);
+  let note = '';
+  if(STATE.targets){
+    const today = STATE.foodLogs[todayStr()]||[];
+    const soFarProtein = today.reduce((s,f)=>s+f.protein,0) + totals.protein;
+    if(soFarProtein < STATE.targets.proteinG*0.5){
+      note = `Your protein intake today is tracking below your ${STATE.targets.proteinG}g target — consider adding a protein-rich item.`;
+    }
+  }
+  document.getElementById('foodResult').innerHTML = `
+    <div class="card reveal in">
+      <span class="card-tag">Estimated breakdown</span>
+      <div class="grid grid-4" style="margin-top:14px;">
+        <div class="stat-mini"><div class="num" id="foodStatCal">0</div><div class="lab">kcal</div></div>
+        <div class="stat-mini alt"><div class="num" id="foodStatProtein">0</div><div class="lab">protein</div></div>
+        <div class="stat-mini"><div class="num" id="foodStatCarbs">0</div><div class="lab">carbs</div></div>
+        <div class="stat-mini alt"><div class="num" id="foodStatFat">0</div><div class="lab">fat · ${Math.round(totals.fiber)}g fiber</div></div>
+      </div>
+      ${macroBarHTML(totals)}
+      <div style="margin-top:18px;">${foodItemsHTML(items)}</div>
+      ${note ? `<div style="margin-top:16px; color:var(--c3); font-size:0.88rem;">${note}</div>` : ''}
+      ${unmatched.length ? `<div style="margin-top:12px; color:var(--faint); font-size:0.8rem;">Not recognized: ${unmatched.map(u=>u.name).join(', ')} — estimate may be incomplete.</div>` : ''}
+      <div class="pending-reminder"><span class="arrow">👉</span> This meal isn't saved yet — tap below to add it to today's log.</div>
+      <button class="btn btn-primary btn-sm btn-pending" id="addToLogBtn" style="margin-top:12px;" onclick="confirmLogFood()">Add to today's log</button>
+    </div>`;
+  animateCountUp('foodStatCal', Math.round(totals.cal), 0, '');
+  animateCountUp('foodStatProtein', Math.round(totals.protein), 0, 'g');
+  animateCountUp('foodStatCarbs', Math.round(totals.carbs), 0, 'g');
+  animateCountUp('foodStatFat', Math.round(totals.fat), 0, 'g');
+  pendingFoodLog = {text, totals};
+  });
+}
+let pendingFoodLog = null;
+async function confirmLogFood(){
+  if(!pendingFoodLog) return;
+  const {text, totals} = pendingFoodLog;
+  const day = todayStr();
+  STATE.foodLogs[day] = STATE.foodLogs[day] || [];
+  STATE.foodLogs[day].push({text, ...totals});
+  await saveData('foodLogs', STATE.foodLogs);
+  pendingFoodLog = null;
+  const reminder = document.querySelector('.pending-reminder');
+  const btn = document.getElementById('addToLogBtn');
+  if(reminder) reminder.outerHTML = '<div class="pending-reminder" style="background:var(--surface2); border-color:var(--line);">✅ Saved to today\'s log.</div>';
+  if(btn) btn.remove();
+  renderFoodLog(); renderDashboard();
+  toast('Logged');
+}
+async function removeFoodLog(idx){
+  const day = todayStr();
+  STATE.foodLogs[day].splice(idx,1);
+  await saveData('foodLogs', STATE.foodLogs);
+  renderFoodLog(); renderDashboard();
+  toast('Removed from log');
+}
+function renderFoodLog(){
+  const day = STATE.foodLogs[todayStr()] || [];
+  const list = document.getElementById('foodLogList');
+  if(!day.length){ list.innerHTML = '<div class="empty">No meals logged yet today.</div>'; return; }
+  let html = day.map((f,idx)=>`
+    <div class="food-log-card">
+      <div>
+        <div class="food-log-text">${f.text}</div>
+        <div class="food-log-macros">
+          <span class="food-chip cal">${Math.round(f.cal)} kcal</span>
+          <span class="food-chip protein">${Math.round(f.protein)}g P</span>
+          <span class="food-chip carbs">${Math.round(f.carbs)}g C</span>
+          <span class="food-chip fat">${Math.round(f.fat)}g F</span>
+        </div>
+      </div>
+      <div class="food-log-remove" onclick="removeFoodLog(${idx})" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg></div>
+    </div>`).join('');
+  if(STATE.targets){
+    const totalCal = day.reduce((s,f)=>s+f.cal,0);
+    const pct = Math.min(100, Math.round(totalCal/STATE.targets.calories*100));
+    html += `<div class="food-progress"><div class="food-progress-label">${Math.round(totalCal)} / ${STATE.targets.calories} kcal today</div><div class="food-progress-track"><div class="food-progress-fill" style="width:${pct}%"></div></div></div>`;
+  }
+  list.innerHTML = html;
+}
+
+/* ============ MEDICATIONS ============ */
+function medsScheduledToday(){ return STATE.meds; }
+async function addMedicine(){
+  const name = document.getElementById('medName').value.trim();
+  const dose = document.getElementById('medDose').value.trim();
+  const duration = document.getElementById('medDuration').value.trim();
+  const schedule = [...document.querySelectorAll('#medScheduleRow .chip.active')].map(c=>c.dataset.v);
+  if(!name || !schedule.length){ toast('Enter a name and pick a schedule'); return; }
+  await withLoader('Adding to your regimen', async ()=>{
+    STATE.meds.push({id:'m'+Date.now(), name, dose, duration, schedule, addedOn: todayStr()});
+    await saveData('meds', STATE.meds);
+  });
+  document.getElementById('medName').value=''; document.getElementById('medDose').value=''; document.getElementById('medDuration').value='';
+  document.querySelectorAll('#medScheduleRow .chip').forEach(c=>c.classList.remove('active'));
+  renderMeds(); toast('Medicine added');
+}
+async function toggleDose(medId, slot){
+  const day = todayStr();
+  STATE.medLog[day] = STATE.medLog[day] || {};
+  STATE.medLog[day][medId] = STATE.medLog[day][medId] || {};
+  STATE.medLog[day][medId][slot] = !STATE.medLog[day][medId][slot];
+  await saveData('medLog', STATE.medLog);
+  renderMeds(); renderDashboard();
+  if(STATE.medLog[day][medId][slot]){
+    const pill = document.getElementById(`dosePill_${medId}_${slot}`);
+    if(pill){ pill.classList.remove('just-taken'); void pill.offsetWidth; pill.classList.add('just-taken'); }
+  }
+}
+async function removeMed(id){
+  STATE.meds = STATE.meds.filter(m=>m.id!==id);
+  await saveData('medLog', STATE.medLog);
+  await saveData('meds', STATE.meds);
+  renderMeds();
+}
+const MED_SLOT_ICON = {
+  morning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  afternoon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  night: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>'
+};
+function medStreak(medId, schedule){
+  let streak = 0;
+  let d = new Date();
+  // if today isn't fully taken yet, streak counts from yesterday backward (today's still in progress)
+  const todayLog = STATE.medLog[todayStr()] && STATE.medLog[todayStr()][medId];
+  const todayDone = todayLog && schedule.every(s=>todayLog[s]);
+  if(!todayDone) d.setDate(d.getDate()-1);
+  for(let i=0;i<365;i++){
+    const key = d.toISOString().slice(0,10);
+    const log = STATE.medLog[key] && STATE.medLog[key][medId];
+    if(log && schedule.every(s=>log[s])){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return todayDone ? streak+1 : streak;
+}
+function renderMeds(){
+  const day = todayStr();
+  const log = STATE.medLog[day] || {};
+
+  // Adherence ring
+  let totalSlots = 0, takenSlots = 0;
+  STATE.meds.forEach(m=>{ totalSlots += m.schedule.length; m.schedule.forEach(s=>{ if(log[m.id] && log[m.id][s]) takenSlots++; }); });
+  const pct = totalSlots ? Math.round((takenSlots/totalSlots)*100) : 0;
+  const RING_LEN = 2*Math.PI*47;
+  const ringFill = document.getElementById('medRingFill');
+  const ringPct = document.getElementById('medRingPct');
+  const adhTitle = document.getElementById('medAdherenceTitle');
+  const adhSub = document.getElementById('medAdherenceSub');
+  if(ringFill){
+    ringFill.style.strokeDasharray = RING_LEN;
+    ringFill.style.strokeDashoffset = RING_LEN*(1-pct/100);
+    ringFill.style.stroke = pct>=80 ? 'var(--success)' : pct>=40 ? 'var(--c4)' : 'var(--danger)';
+  }
+  if(ringPct) ringPct.textContent = pct+'%';
+  if(adhTitle && adhSub){
+    if(!STATE.meds.length){ adhTitle.textContent = 'No medications added yet'; adhSub.textContent = 'Add one below to start tracking adherence.'; }
+    else { adhTitle.textContent = `${takenSlots} of ${totalSlots} doses taken today`; adhSub.textContent = pct===100 ? 'Perfect adherence today — nicely done.' : pct===0 ? 'No doses marked yet — tap a dose pill on any medicine below.' : 'Keep going — tap each dose pill as you take it.'; }
+  }
+
+  // Medicine cards
+  document.getElementById('medFullList').innerHTML = STATE.meds.length ? STATE.meds.map(m=>{
+    const streak = medStreak(m.id, m.schedule);
+    return `<div class="med-card">
+      <div class="med-card-head">
+        <div><div class="med-card-name">${m.name}</div><div class="med-card-dose">${m.dose||'No dose specified'}</div></div>
+        <div class="med-card-remove" onclick="removeMed('${m.id}')" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg></div>
+      </div>
+      <div class="med-dose-row">
+        ${m.schedule.map(s=>`<div class="med-dose-pill ${log[m.id] && log[m.id][s] ? 'taken':''}" id="dosePill_${m.id}_${s}" onclick="toggleDose('${m.id}','${s}')">${MED_SLOT_ICON[s]}${s}</div>`).join('')}
+      </div>
+      <div class="med-card-footer">
+        <span class="med-duration">${m.duration||'No duration set'}</span>
+        ${streak>0 ? `<span class="med-streak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3-2 4-2 7a4 4 0 008 0c0-1-.5-2-1-3 2 1 3 3 3 5a6 6 0 01-12 0c0-4 3-6 4-9z"/></svg>${streak} day streak</span>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No medications added yet.</div>';
+}
+function exportMeds(){
+  if(!STATE.meds.length){ toast('No medications to export'); return; }
+  openPrintModal(`
+    <h1>Medication List — ${new Date().toLocaleDateString()}</h1>
+    <table><tr><th>Name</th><th>Dose</th><th>Schedule</th><th>Duration</th></tr>
+    ${STATE.meds.map(m=>`<tr><td>${m.name}</td><td>${m.dose||'—'}</td><td>${m.schedule.join(', ')}</td><td>${m.duration||'—'}</td></tr>`).join('')}
+    </table>`);
+}
+
+/* ============ MEDITATION / BREATHING TIMER ============ */
+let MED_TIMER = null;
+let MEDITATION = null; // {phases, phaseIdx, phaseSecondsLeft, totalSecondsLeft, totalSeconds, running}
+
+function getBreathPattern(){
+  const chip = document.querySelector('#medPatternRow .chip.active');
+  return {inhale:+chip.dataset.in, hold1:+chip.dataset.hold1, exhale:+chip.dataset.out, hold2:+chip.dataset.hold2};
+}
+function getBreathDurationMin(){
+  return +document.querySelector('#medDurationRow .chip.active').dataset.v;
+}
+function buildBreathPhases(p){
+  return [
+    {name:'Inhale', dur:p.inhale, scale:1.5},
+    {name:'Hold', dur:p.hold1, scale:1.5},
+    {name:'Exhale', dur:p.exhale, scale:1},
+    {name:'Hold', dur:p.hold2, scale:1}
+  ].filter(ph=>ph.dur>0);
+}
+function fmtMMSS(s){
+  s = Math.max(s,0);
+  return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+}
+function applyBreathPhase(phase){
+  const orb = document.getElementById('breatheOrb');
+  orb.style.transitionDuration = phase.dur+'s';
+  orb.style.transform = `scale(${phase.scale})`;
+  document.getElementById('breathePhaseText').textContent = phase.name;
+}
+function toggleMeditation(){
+  if(MEDITATION && MEDITATION.running){ pauseMeditation(); }
+  else if(MEDITATION && !MEDITATION.running){ resumeMeditation(); }
+  else { startMeditation(); }
+}
+function startMeditation(){
+  const pattern = getBreathPattern();
+  const durationMin = getBreathDurationMin();
+  const phases = buildBreathPhases(pattern);
+  MEDITATION = {phases, phaseIdx:0, phaseSecondsLeft:phases[0].dur, totalSecondsLeft:durationMin*60, totalSeconds:durationMin*60, running:true};
+  applyBreathPhase(phases[0]);
+  document.getElementById('breatheCountText').textContent = MEDITATION.phaseSecondsLeft;
+  document.getElementById('breatheTimeLeft').textContent = fmtMMSS(MEDITATION.totalSecondsLeft)+' remaining';
+  document.getElementById('breatheStartBtn').textContent = 'Pause';
+  document.getElementById('breatheResetBtn').style.display = 'inline-flex';
+  document.getElementById('breatheCard').classList.add('active');
+  clearInterval(MED_TIMER);
+  MED_TIMER = setInterval(meditationTick, 1000);
+}
+function pauseMeditation(){
+  clearInterval(MED_TIMER); MED_TIMER = null;
+  MEDITATION.running = false;
+  document.getElementById('breatheOrb').style.transitionDuration = '0.6s';
+  document.getElementById('breatheStartBtn').textContent = 'Resume';
+}
+function resumeMeditation(){
+  MEDITATION.running = true;
+  applyBreathPhase({...MEDITATION.phases[MEDITATION.phaseIdx], dur:MEDITATION.phaseSecondsLeft});
+  document.getElementById('breatheStartBtn').textContent = 'Pause';
+  clearInterval(MED_TIMER);
+  MED_TIMER = setInterval(meditationTick, 1000);
+}
+async function meditationTick(){
+  if(!MEDITATION) return;
+  MEDITATION.totalSecondsLeft--;
+  MEDITATION.phaseSecondsLeft--;
+  document.getElementById('breatheTimeLeft').textContent = fmtMMSS(MEDITATION.totalSecondsLeft)+' remaining';
+  if(MEDITATION.totalSecondsLeft<=0){ await finishMeditation(); return; }
+  if(MEDITATION.phaseSecondsLeft<=0){
+    MEDITATION.phaseIdx = (MEDITATION.phaseIdx+1) % MEDITATION.phases.length;
+    const phase = MEDITATION.phases[MEDITATION.phaseIdx];
+    MEDITATION.phaseSecondsLeft = phase.dur;
+    applyBreathPhase(phase);
+  }
+  document.getElementById('breatheCountText').textContent = MEDITATION.phaseSecondsLeft;
+}
+async function finishMeditation(){
+  clearInterval(MED_TIMER); MED_TIMER = null;
+  const minutes = Math.round(MEDITATION.totalSeconds/60);
+  document.getElementById('breathePhaseText').textContent = 'Complete';
+  document.getElementById('breatheCountText').textContent = '🌿';
+  const orb = document.getElementById('breatheOrb');
+  orb.style.transitionDuration = '0.8s';
+  orb.style.transform = 'scale(1.2)';
+  document.getElementById('breatheTimeLeft').textContent = 'Session complete';
+  document.getElementById('breatheStartBtn').textContent = 'Begin session';
+  document.getElementById('breatheResetBtn').style.display = 'none';
+  document.getElementById('breatheCard').classList.remove('active');
+  await logMeditationSession(minutes);
+  MEDITATION = null;
+  toast('Session complete — nicely done');
+}
+function resetMeditation(){
+  clearInterval(MED_TIMER); MED_TIMER = null; MEDITATION = null;
+  const orb = document.getElementById('breatheOrb');
+  orb.style.transitionDuration = '0.6s';
+  orb.style.transform = 'scale(1)';
+  document.getElementById('breathePhaseText').textContent = 'Ready';
+  document.getElementById('breatheCountText').textContent = '';
+  document.getElementById('breatheTimeLeft').textContent = fmtMMSS(getBreathDurationMin()*60)+' remaining';
+  document.getElementById('breatheStartBtn').textContent = 'Begin session';
+  document.getElementById('breatheResetBtn').style.display = 'none';
+  document.getElementById('breatheCard').classList.remove('active');
+}
+async function logMeditationSession(minutes){
+  const day = todayStr();
+  STATE.meditationLog[day] = STATE.meditationLog[day] || {minutes:0, sessions:0};
+  STATE.meditationLog[day].minutes += minutes;
+  STATE.meditationLog[day].sessions += 1;
+  await saveData('meditationLog', STATE.meditationLog);
+  renderMeditationStats();
+}
+function meditationStreak(){
+  let streak = 0, d = new Date();
+  const todayLog = STATE.meditationLog[todayStr()];
+  if(!todayLog) d.setDate(d.getDate()-1);
+  for(let i=0;i<365;i++){
+    const key = d.toISOString().slice(0,10);
+    if(STATE.meditationLog[key] && STATE.meditationLog[key].sessions>0){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return todayLog ? streak+1 : streak;
+}
+function renderMeditationStats(){
+  const log = STATE.meditationLog[todayStr()] || {minutes:0, sessions:0};
+  document.getElementById('medStatToday').textContent = log.minutes;
+  document.getElementById('medStatSessions').textContent = log.sessions;
+  const streak = meditationStreak();
+  document.getElementById('medStatStreak').textContent = streak;
+  const streakCard = document.getElementById('streakStatCard');
+  const streakLabel = document.getElementById('streakLabel');
+  if(streakCard){
+    streakCard.classList.toggle('active', streak>0);
+    streakCard.classList.toggle('broken', streak===0);
+  }
+  if(streakLabel) streakLabel.textContent = streak>0 ? 'day streak 🔥' : 'streak broken';
+}
+// Keep the idle "time remaining" preview in sync if the user changes duration/pattern before starting
+['medDurationRow','medPatternRow'].forEach(id=>{
+  const row = document.getElementById(id);
+  if(row) row.addEventListener('click', ()=>{ if(!MEDITATION) resetMeditation(); });
+});
+
+/* ============ SAFETY CHECKER ============ */
+const INTERACTION_DB = [
+  {a:'aspirin', b:'warfarin', note:'Combined use may increase bleeding risk.'},
+  {a:'ibuprofen', b:'aspirin', note:'Both are NSAIDs — combined use may raise GI and bleeding risk.'},
+  {a:'metformin', b:'alcohol', note:'Alcohol may increase risk of lactic acidosis with metformin.'},
+  {a:'paracetamol', b:'alcohol', note:'Regular heavy alcohol use may increase liver strain with paracetamol.'},
+  {a:'amoxicillin', b:'methotrexate', note:'May increase methotrexate levels — needs monitoring.'},
+];
+async function runSafetyCheck(){
+  if(!STATE.meds.length){
+    document.getElementById('safetyResult').innerHTML = `
+      <div class="card reveal in">
+        <span class="card-tag">Nothing to check yet</span><div class="card-title">No medications added</div>
+        <p style="color:var(--muted); margin-top:10px; font-size:0.9rem;">Add your medications in the Medications section first — this check runs automatically on whatever you've saved there.</p>
+      </div>`;
+    return;
+  }
+  await withLoader('Scanning for interactions', async ()=>{
+  const names = STATE.meds.map(m=>m.name.toLowerCase());
+  const flags = [];
+  // duplicates
+  const seen = {};
+  names.forEach(n=>{ seen[n]=(seen[n]||0)+1; });
+  Object.entries(seen).forEach(([n,c])=>{ if(c>1) flags.push({level:'danger', text:`"${n}" appears ${c} times in your list — possible duplicate entry.`}); });
+  // interactions
+  INTERACTION_DB.forEach(pair=>{
+    if(names.some(n=>n.includes(pair.a)) && names.some(n=>n.includes(pair.b))){
+      flags.push({level:'warn', text:`Possible interaction: ${pair.a} + ${pair.b} — ${pair.note}`});
+    }
+  });
+  // allergy cross-check
+  const allergies = (STATE.profile && STATE.profile.allergies || '').toLowerCase().split(',').map(a=>a.trim()).filter(Boolean);
+  allergies.forEach(a=>{ if(a && names.some(n=>n.includes(a))) flags.push({level:'danger', text:`You listed an allergy to "${a}" — it appears to match a medication in your list.`}); });
+
+  document.getElementById('safetyResult').innerHTML = `
+    <div class="card reveal in">
+      <span class="card-tag">Checked ${STATE.meds.length} medicine${STATE.meds.length===1?'':'s'} automatically</span><div class="card-title">${flags.length} flag(s) found</div>
+      <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
+        ${flags.length ? flags.map(f=>bannerHTML(f.level,f.text)).join('') : bannerHTML('info','No duplicates, listed interactions, or allergy matches found — but this only checks against a small illustrative dataset, not a full drug database. Always confirm with a pharmacist.')}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:16px;" onclick="runSafetyCheck()">Re-check now</button>
+    </div>`;
+  });
+}
+
+/* ============ SYMPTOM JOURNAL ============ */
+function syncSlider(id){ document.getElementById(id+'Val').textContent = document.getElementById(id).value; }
+function toggleSymptomDetail(){
+  document.getElementById('symMorePanel').classList.toggle('open');
+  document.getElementById('symMoreToggle').classList.toggle('open');
+  const isOpen = document.getElementById('symMorePanel').classList.contains('open');
+  document.getElementById('symMoreLabel').textContent = isOpen ? 'Hide extra detail' : 'Add more detail (optional)';
+}
+const REDFLAG_KEYWORDS = ['chest pain','difficulty breathing','cannot breathe','severe bleeding','confusion','fainted','suicidal','unbearable pain','blue lips'];
+function checkRedFlag(entry){
+  if(entry.pain>=5) return 'Pain rated at maximum severity. These symptoms may need prompt medical attention — please contact a qualified healthcare professional.';
+  if(entry.temp && entry.temp>=103) return 'Temperature at or above 103°F was logged. These symptoms may need prompt medical attention — please contact a qualified healthcare professional.';
+  const notes = (entry.notes||'').toLowerCase();
+  if(REDFLAG_KEYWORDS.some(k=>notes.includes(k))) return 'Your notes mention a symptom that can be urgent. These symptoms may need prompt medical attention — please contact a qualified healthcare professional.';
+  return null;
+}
+async function saveSymptomEntry(){
+  const entry = {
+    date: todayStr(),
+    headache:+document.getElementById('symHead').value, fatigue:+document.getElementById('symFatigue').value,
+    pain:+document.getElementById('symPain').value, mood:+document.getElementById('symMood').value,
+    appetite: document.getElementById('symAppetite').value, digestion: document.getElementById('symDigestion').value,
+    temp: +document.getElementById('symTemp').value || null, sleep: +document.getElementById('symSleep').value || null,
+    notes: document.getElementById('symNotes').value
+  };
+  await withLoader('Saving your entry', async ()=>{
+    STATE.symptoms = STATE.symptoms.filter(s=>s.date!==entry.date);
+    STATE.symptoms.push(entry);
+    await saveData('symptoms', STATE.symptoms);
+  });
+  const rf = checkRedFlag(entry);
+  document.getElementById('symptomRedflag').innerHTML = rf ? bannerHTML('danger', rf) : bannerHTML('info','Entry saved. Keep logging daily to build a useful trend for your doctor.');
+  renderSymptomChart();
+  toast('Symptom entry saved');
+}
+function renderSymptomChart(){
+  const c = document.getElementById('symptomChart'); if(!c) return;
+  c.width = c.clientWidth*2; c.height=180*2;
+  const g = c.getContext('2d'); g.scale(2,2);
+  const w = c.clientWidth, h=180;
+  g.clearRect(0,0,w,h);
+  const dark = document.documentElement.getAttribute('data-theme')!=='light';
+  const data = STATE.symptoms.slice(-14);
+  if(data.length<2){ g.fillStyle= dark?'#525C74':'#98A1B8'; g.font='13px Inter'; g.fillText('Log a few days to see your trend', 10, h/2); return; }
+  const series = [
+    {key:'headache', color:'#4FF2E8'}, {key:'fatigue', color:'#A78BFA'}, {key:'pain', color:'#FF5C7A'}
+  ];
+  const stepX = (w-40)/(data.length-1);
+  series.forEach(s=>{
+    g.beginPath();
+    data.forEach((d,i)=>{
+      const x=20+i*stepX, y=h-20-((d[s.key]||0)/5)*(h-40);
+      if(i===0) g.moveTo(x,y); else g.lineTo(x,y);
+    });
+    g.strokeStyle=s.color; g.lineWidth=2; g.lineCap='round'; g.lineJoin='round'; g.stroke();
+  });
+  // legend
+  g.font='11px JetBrains Mono';
+  series.forEach((s,i)=>{ g.fillStyle=s.color; g.fillRect(10+i*90,4,8,8); g.fillStyle= dark?'#8A93AC':'#5C6580'; g.fillText(s.key,22+i*90,12); });
+}
+
+/* ============ LAB REPORTS ============ */
+const LAB_DICT = {
+  'Hemoglobin':{unit:'g/dL', low:12, high:16, explain:'Carries oxygen in your blood. Low levels can relate to anemia; high levels can relate to dehydration or other causes.'},
+  'Fasting Glucose':{unit:'mg/dL', low:70, high:100, explain:'Measures blood sugar after fasting. Helps screen for prediabetes or diabetes.'},
+  'Total Cholesterol':{unit:'mg/dL', low:0, high:200, explain:'Total fat-like substance in blood. High levels are linked to cardiovascular risk over time.'},
+  'HDL Cholesterol':{unit:'mg/dL', low:40, high:200, explain:'"Good" cholesterol — higher is generally considered protective.'},
+  'LDL Cholesterol':{unit:'mg/dL', low:0, high:100, explain:'"Bad" cholesterol — higher levels are linked to arterial plaque buildup.'},
+  'TSH':{unit:'mIU/L', low:0.4, high:4.0, explain:'Signals your thyroid to produce hormone. Out-of-range values can point to thyroid over- or under-activity.'},
+  'Vitamin D':{unit:'ng/mL', low:20, high:50, explain:'Important for bone health and immunity. Common to run low, especially with limited sun exposure.'},
+  'Vitamin B12':{unit:'pg/mL', low:200, high:900, explain:'Needed for nerve function and red blood cells. Low levels are common in vegetarians and vegans.'},
+  'Creatinine':{unit:'mg/dL', low:0.6, high:1.3, explain:'Reflects kidney filtering function.'},
+  'ALT (Liver)':{unit:'U/L', low:7, high:56, explain:'An enzyme that rises when liver cells are under stress or damaged.'}
+};
+function populateLabTestSelect(){
+  const sel = document.getElementById('labTest');
+  sel.innerHTML = Object.keys(LAB_DICT).map(k=>`<option>${k}</option>`).join('');
+}
+async function addLabResult(){
+  const name = document.getElementById('labTest').value;
+  const value = +document.getElementById('labValue').value;
+  if(!value && value!==0){ toast('Enter a value'); return; }
+  const ref = LAB_DICT[name];
+  const status = value<ref.low ? 'low' : value>ref.high ? 'high' : 'normal';
+  const entry = {date: todayStr(), name, value, unit: ref.unit, low: ref.low, high: ref.high, status, explain: ref.explain};
+  await withLoader('Interpreting result', async ()=>{
+    STATE.labs.unshift(entry);
+    await saveData('labs', STATE.labs);
+  });
+  document.getElementById('labValue').value='';
+  renderLabs();
+  toast('Result added');
+}
+function renderLabs(){
+  document.getElementById('labResults').innerHTML = STATE.labs.length ? STATE.labs.map(l=>`
+    <div class="card reveal in" style="margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div><div class="card-title">${l.name}</div><div class="mono" style="color:var(--muted); font-size:0.85rem; margin-top:4px;">${l.value} ${l.unit} · reference ${l.low}–${l.high} ${l.unit}</div></div>
+        <span class="tag ${l.status==='normal'?'tag-ok':l.status==='low'?'tag-warn':'tag-danger'}">${l.status}</span>
+      </div>
+      <p style="color:var(--muted); font-size:0.88rem; margin-top:12px; line-height:1.55;">${l.explain}</p>
+      ${l.status!=='normal' ? '<p style="color:var(--c3); font-size:0.85rem; margin-top:8px;">This is outside the typical range — worth discussing with a healthcare professional.</p>' : ''}
+    </div>`).join('') : '<div class="empty">No results added yet.</div>';
+}
+
+/* ============ GROCERY ============ */
+const INGREDIENT_MAP = {
+  'Oats + banana + milk':[['Oats','500 g'],['Bananas','7 pcs'],['Milk','1 L']],
+  'Poha + curd':[['Poha (flattened rice)','500 g'],['Onions','250 g'],['Curd','500 g']],
+  'Vegetable upma':[['Semolina (rava)','500 g'],['Mixed vegetables','500 g']],
+  'Idli + sambar':[['Idli batter','1 kg'],['Toor dal','500 g'],['Mixed vegetables','500 g']],
+  'Stuffed paratha + curd':[['Wheat flour','1 kg'],['Potatoes','1 kg'],['Curd','500 g']],
+  'Dal + rice + sabzi + curd':[['Dal (mixed)','1 kg'],['Rice','1 kg'],['Seasonal vegetables','2 kg'],['Curd','1 kg']],
+  'Rajma + rice + salad':[['Rajma (kidney beans)','500 g'],['Rice','1 kg'],['Cucumber & onion','500 g']],
+  'Chole + roti + salad':[['Chickpeas (chole)','500 g'],['Wheat flour','1 kg'],['Cucumber & onion','500 g']],
+  'Mixed veg curry + rice':[['Mixed vegetables','1 kg'],['Rice','1 kg']],
+  'Kadhi + rice + papad':[['Curd (for kadhi)','500 g'],['Gram flour (besan)','250 g'],['Rice','1 kg'],['Papad','1 pack']],
+  'Fruit + peanuts':[['Seasonal fruit','2 kg'],['Peanuts','500 g']],
+  'Sprouts salad':[['Sprouts','500 g'],['Onion & tomato','300 g']],
+  'Roasted chana':[['Roasted chana','500 g']],
+  'Buttermilk + nuts':[['Buttermilk','1 L'],['Mixed nuts','250 g']],
+  'Paneer sabzi + 2 roti':[['Paneer','500 g'],['Wheat flour','1 kg']],
+  'Vegetable khichdi':[['Rice','500 g'],['Moong dal','500 g'],['Mixed vegetables','500 g']],
+  'Dal + 2 roti + sabzi':[['Dal','500 g'],['Wheat flour','1 kg'],['Seasonal vegetables','1 kg']],
+  'Palak paneer + roti':[['Spinach','500 g'],['Paneer','250 g'],['Wheat flour','1 kg']],
+  'Poha':[['Poha (flattened rice)','500 g'],['Onions','250 g']],
+  'Bread + peanut butter':[['Bread','1 loaf'],['Peanut butter','1 jar']],
+  'Sprouts chaat':[['Sprouts','500 g'],['Onion, tomato, lemon','300 g']],
+  'Dal + rice + seasonal sabzi':[['Dal','1 kg'],['Rice','1 kg'],['Seasonal vegetables','2 kg']],
+  'Rajma + rice':[['Rajma (kidney beans)','500 g'],['Rice','1 kg']],
+  'Chole + rice':[['Chickpeas (chole)','500 g'],['Rice','1 kg']],
+  'Mixed veg + rice':[['Mixed vegetables','1 kg'],['Rice','1 kg']],
+  'Banana':[['Bananas','7 pcs']],
+  'Seasonal fruit':[['Seasonal fruit','2 kg']],
+  'Curd rice':[['Curd','1 kg'],['Rice','1 kg']],
+  'Dal + roti':[['Dal','500 g'],['Wheat flour','1 kg']],
+  'Sabzi + roti':[['Seasonal vegetables','2 kg'],['Wheat flour','1 kg']],
+  'Egg bhurji + 2 toast':[['Eggs','12 pcs'],['Bread','1 loaf']],
+  'Boiled eggs + fruit':[['Eggs','12 pcs'],['Seasonal fruit','2 kg']],
+  'Egg paratha':[['Eggs','12 pcs'],['Wheat flour','1 kg']],
+  'Vegetable omelette + toast':[['Eggs','12 pcs'],['Mixed vegetables','300 g'],['Bread','1 loaf']],
+  'Egg curry + rice + salad':[['Eggs','12 pcs'],['Rice','1 kg'],['Cucumber & onion','300 g']],
+  'Sprouts salad + roti':[['Sprouts','500 g'],['Wheat flour','1 kg']],
+  'Boiled egg + fruit':[['Eggs','7 pcs'],['Seasonal fruit','1 kg']],
+  'Paneer/egg curry + roti':[['Paneer or eggs','500 g'],['Wheat flour','1 kg']],
+  'Egg fried rice':[['Eggs','12 pcs'],['Rice','1 kg'],['Mixed vegetables','300 g']],
+  'Dal + roti + sabzi':[['Dal','500 g'],['Wheat flour','1 kg'],['Seasonal vegetables','1 kg']],
+  '2 boiled eggs + toast':[['Eggs','14 pcs'],['Bread','1 loaf']],
+  'Egg bhurji':[['Eggs','12 pcs']],
+  'Bread omelette':[['Eggs','12 pcs'],['Bread','1 loaf']],
+  'Dal + rice':[['Dal','500 g'],['Rice','1 kg']],
+  'Egg curry + rice':[['Eggs','12 pcs'],['Rice','1 kg']],
+  'Boiled egg':[['Eggs','7 pcs']],
+  'Egg bhurji + toast':[['Eggs','12 pcs'],['Bread','1 loaf']],
+  'Chicken sausage + toast':[['Chicken sausages','500 g'],['Bread','1 loaf']],
+  'Omelette + toast':[['Eggs','12 pcs'],['Bread','1 loaf']],
+  'Chicken curry + rice + sabzi':[['Chicken','1 kg'],['Rice','1 kg'],['Seasonal vegetables','1 kg']],
+  'Fish curry + rice + salad':[['Fish','1 kg'],['Rice','1 kg'],['Cucumber & onion','300 g']],
+  'Chicken salad wrap':[['Chicken breast','1 kg'],['Mixed greens','300 g']],
+  'Fish/chicken + roti':[['Chicken or fish','1 kg'],['Wheat flour','1 kg']],
+  'Chicken curry + rice':[['Chicken','1 kg'],['Rice','1 kg']],
+  'Grilled chicken + salad':[['Chicken breast','1 kg'],['Mixed greens','300 g']],
+  '2 eggs + roti':[['Eggs','14 pcs'],['Wheat flour','1 kg']],
+  'Boiled eggs':[['Eggs','12 pcs']],
+  'Chicken curry (small) + rice':[['Chicken','500 g'],['Rice','1 kg']],
+  'Chicken curry (small) + roti':[['Chicken','500 g'],['Wheat flour','1 kg']]
+};
+function renderGrocery(){
+  if(!STATE.dietPlan){ document.getElementById('groceryOut').innerHTML = '<div class="empty">Generate a meal plan in Diet Planner first.</div>'; return; }
+  const agg = {};
+  const uniqueMeals = [...new Set(STATE.dietPlan.days.flatMap(d=>d.meals.map(m=>m.text)))];
+  uniqueMeals.forEach(m=>{
+    const ing = INGREDIENT_MAP[m];
+    if(ing) ing.forEach(([name])=>{ agg[name] = (agg[name]||0)+1; });
+  });
+  const budget = STATE.dietPlan.budget;
+  document.getElementById('groceryOut').innerHTML = `
+    <div class="card reveal in">
+      <span class="card-tag">${budget==='tight'?'Budget-friendly':'Standard'} weekly list</span><div class="card-title">Based on your current meal plan</div>
+      <div style="margin-top:14px;">
+        ${Object.keys(agg).map(k=>`<div class="list-item"><span>${k}</span><span class="mono" style="color:var(--muted); font-size:0.82rem;">weekly staple</span></div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* ============ HEALTH REPORT ============ */
+function generateReport(){
+  const p = STATE.profile, t = STATE.targets;
+  if(!p){ toast('Complete your profile first'); return; }
+  const recentSymptoms = STATE.symptoms.slice(-7);
+  const flaggedLabs = STATE.labs.filter(l=>l.status!=='normal');
+  const questions = [];
+  if(flaggedLabs.length) questions.push(`What do my out-of-range results (${flaggedLabs.map(l=>l.name).join(', ')}) mean for me specifically?`);
+  if(recentSymptoms.some(s=>s.pain>=3)) questions.push('I have had recurring pain rated 3+ this week — what could be causing it?');
+  if(STATE.meds.length>=3) questions.push('With this many medications, should we review for interactions or simplify anything?');
+  if(!questions.length) questions.push('Are there any preventive screenings I should consider at my age?');
+
+  showLoader('Compiling your report');
+  setTimeout(()=>{
+    const html = `
+    <h1>My Health Summary — ${new Date().toLocaleDateString('en-IN',{month:'long', year:'numeric'})}</h1>
+    <h2>Profile</h2><p>Age ${p.age}, ${p.sex}, ${p.height}cm, ${p.weight}kg. Diet: ${p.foodPref}. Allergies: ${p.allergies||'none listed'}.</p>
+    <h2>Daily targets</h2><p>${t.calories} kcal · ${t.proteinG}g protein · ${t.carbsG}g carbs · ${t.fatG}g fat · BMI ${t.bmi}</p>
+    <h2>Current medications</h2>${STATE.meds.length ? `<table><tr><th>Name</th><th>Dose</th><th>Schedule</th></tr>${STATE.meds.map(m=>`<tr><td>${m.name}</td><td>${m.dose||'—'}</td><td>${m.schedule.join(', ')}</td></tr>`).join('')}</table>` : '<p>None recorded.</p>'}
+    <h2>Recent symptoms (last 7 entries)</h2>${recentSymptoms.length ? `<table><tr><th>Date</th><th>Headache</th><th>Fatigue</th><th>Pain</th><th>Mood</th></tr>${recentSymptoms.map(s=>`<tr><td>${s.date}</td><td>${s.headache}</td><td>${s.fatigue}</td><td>${s.pain}</td><td>${s.mood}</td></tr>`).join('')}</table>` : '<p>None logged.</p>'}
+    <h2>Weight trend</h2><p>${STATE.weightHistory.slice(-5).map(wh=>wh.date+': '+wh.w+'kg').join(' → ') || 'No entries yet.'}</p>
+    <h2>Recent lab values</h2>${STATE.labs.length ? `<table><tr><th>Test</th><th>Value</th><th>Status</th></tr>${STATE.labs.slice(0,8).map(l=>`<tr><td>${l.name}</td><td>${l.value} ${l.unit}</td><td>${l.status}</td></tr>`).join('')}</table>` : '<p>None recorded.</p>'}
+    <h2>Questions to ask your doctor</h2><ul>${questions.map(q=>'<li>'+q+'</li>').join('')}</ul>
+    <p style="margin-top:30px; color:#777; font-size:0.82rem;">Generated from self-reported data. Not a medical diagnosis.</p>`;
+    hideLoader();
+    openPrintModal(html);
+    document.getElementById('reportOut').innerHTML = bannerHTML('info','Report ready below — use "Print / Save as PDF" to keep a copy.');
+  }, 900);
+}
+
+/* ============ KABIR.AI ============ */
+const KABIR_SUGGESTIONS = [
+  "How am I doing today?",
+  "Help me plan my evening",
+  "I'm stressed about exams, any tips?",
+  "Explain something for my studies",
+  "Suggest a good movie",
+  "Am I drinking enough water?"
+];
+function renderKabirSuggestions(){
+  const el = document.getElementById('kabirSuggestions');
+  if(!el) return;
+  el.innerHTML = KABIR_SUGGESTIONS.map(s=>`<div class="chip" onclick="document.getElementById('kabirInput').value='${s.replace(/'/g,"\\'")}'; sendKabir();">${s}</div>`).join('');
+}
+function escapeHTML(str){
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+function kabirScrollToBottom(){
+  const box = document.getElementById('kabirMessages');
+  if(box) box.scrollTop = box.scrollHeight;
+}
+function hideKabirEmpty(){
+  const empty = document.getElementById('kabirEmpty');
+  if(empty) empty.style.display = 'none';
+}
+function typewriterReveal(el, fullText){
+  return new Promise(resolve=>{
+    const label = '<span class="kabir-msg-label">Kabir</span>';
+    el.innerHTML = label;
+    const textSpan = document.createElement('span');
+    el.appendChild(textSpan);
+    const total = fullText.length;
+    const tickMs = 16;
+    // ~14ms per character feels like real typing; capped so very long replies don't take forever
+    const targetDurationMs = Math.min(2600, Math.max(500, total*14));
+    const totalTicks = Math.max(1, Math.round(targetDurationMs/tickMs));
+    const charsPerTick = Math.max(1, Math.ceil(total/totalTicks));
+    let shown = 0;
+    function step(){
+      shown = Math.min(total, shown+charsPerTick);
+      textSpan.innerHTML = escapeHTML(fullText.slice(0,shown)).replace(/\n/g,'<br>');
+      kabirScrollToBottom();
+      if(shown<total){ setTimeout(step, tickMs); } else { resolve(); }
+    }
+    step();
+  });
+}
+function appendKabirBubble(role, text, opts={}){
+  const box = document.getElementById('kabirMessages');
+  if(!box) return;
+  hideKabirEmpty();
+  const div = document.createElement('div');
+  div.className = 'kabir-msg ' + role;
+  box.appendChild(div);
+  if(role==='assistant' && opts.animate){
+    typewriterReveal(div, text);
+  } else {
+    const label = role==='assistant' ? '<span class="kabir-msg-label">Kabir</span>' : '';
+    div.innerHTML = label + escapeHTML(text).replace(/\n/g,'<br>');
+  }
+  kabirScrollToBottom();
+  return div;
+}
+function renderKabirHistory(){
+  const box = document.getElementById('kabirMessages');
+  if(!box) return;
+  if(!STATE.kabirChat.length) return; // keep empty-state visible
+  hideKabirEmpty();
+  STATE.kabirChat.forEach(m=>appendKabirBubble(m.role, m.content)); // no animate — already-read messages shouldn't retype
+}
+const VITAL_START_DATE = new Date('2026-08-13T00:00:00');
+function daysSinceVitalStart(){
+  return Math.max(1, Math.floor((new Date() - VITAL_START_DATE) / 86400000) + 1);
+}
+function buildKabirContext(){
+  const p = STATE.profile, t = STATE.targets;
+  const dl = STATE.dailyLogs[todayStr()] || {};
+  const lines = [];
+  lines.push(`Today's date: ${new Date().toDateString()}.`);
+  lines.push(`VITAL project status: Shivam started building VITAL on ${VITAL_START_DATE.toDateString()}, so as of today he has been working on it for ${daysSinceVitalStart()} day(s).`);
+  if(p && t){
+    lines.push(`Profile: name ${p.name||'not given'}, age ${p.age}, ${p.sex}, ${p.height}cm, ${p.weight}kg, activity x${p.activity}, goal ${p.goal>0?'gain':p.goal<0?'lose':'maintain'} weight, diet ${p.foodPref}, allergies: ${p.allergies||'none listed'}, sleep target ${p.sleepTarget||8}hrs.`);
+    lines.push(`Daily targets: ${t.calories} kcal, ${t.proteinG}g protein, ${t.carbsG}g carbs, ${t.fatG}g fat. BMI ${t.bmi}.`);
+  } else {
+    lines.push('User has not completed their Health Profile yet — if they ask something that depends on it (like calorie targets), gently point them there instead of guessing numbers.');
+  }
+  lines.push(`Today's logs — water: ${dl.water||0} glasses, sleep: ${dl.sleep||'not logged'} hrs, steps: ${dl.steps||0}.`);
+  const todayFoods = STATE.foodLogs[todayStr()] || [];
+  if(todayFoods.length){
+    const totals = todayFoods.reduce((a,f)=>({cal:a.cal+(f.cal||0), protein:a.protein+(f.protein||0)}), {cal:0,protein:0});
+    lines.push(`Food logged today (${todayFoods.length} items, ~${Math.round(totals.cal)} kcal, ~${Math.round(totals.protein)}g protein so far): ${todayFoods.map(f=>f.text).join('; ')}.`);
+  } else {
+    lines.push('No food logged today yet.');
+  }
+  if(STATE.dietPlan){
+    lines.push(`Has an active diet plan (budget: ${STATE.dietPlan.budget||'not set'}) covering meals like: ${[...new Set(STATE.dietPlan.days.flatMap(d=>d.meals.map(m=>m.text)))].slice(0,6).join(', ')}.`);
+  }
+  if(STATE.weightHistory && STATE.weightHistory.length){
+    const recent = STATE.weightHistory.slice(-5).map(w=>`${w.date}: ${w.w}kg`).join(', ');
+    lines.push(`Recent weight entries: ${recent}.`);
+  }
+  if(STATE.meds && STATE.meds.length){
+    lines.push(`Current medications: ${STATE.meds.map(m=>`${m.name}${m.dose?' ('+m.dose+')':''}`).join(', ')}.`);
+  }
+  if(STATE.symptoms && STATE.symptoms.length){
+    const recent = STATE.symptoms.slice(-3).map(s=>`${s.date}: headache ${s.headache}, fatigue ${s.fatigue}, pain ${s.pain}, mood ${s.mood}`).join(' | ');
+    lines.push(`Recent symptom entries: ${recent}.`);
+  }
+  if(STATE.labs && STATE.labs.length){
+    lines.push(`All logged labs: ${STATE.labs.map(l=>`${l.name} ${l.value}${l.unit} (${l.status})`).join(', ')}.`);
+  }
+  return lines.join('\n');
+}
+const KABIR_API_ENDPOINT = "/api/kabir";
+// ⬆️ IMPORTANT: this only works inside the Claude.ai preview.
+// Once you deploy your own Cloudflare Worker (see setup guide), replace the line above with:
+// const KABIR_API_ENDPOINT = "https://your-worker-name.your-subdomain.workers.dev";
+
+const KABIR_IDENTITY_PATTERNS = [
+  'who made you','who created you','who built you','who trained you','who developed you',
+  'who designed you','who is your creator','who owns you','which company made you',
+  'who made vital','who built vital','who created vital','who developed vital',
+  'apne kisne bnaya','apko kisne bnaya','tumhe kisne banaya','tumko kisne banaya',
+  'kisne banaya','kis ne banaya','kaha kaam karte','kaha kaam krte','kaam karte ho','kaam krte ho'
+];
+function detectKabirIdentityQuestion(q){
+  const s = q.toLowerCase();
+  return KABIR_IDENTITY_PATTERNS.some(p=>s.includes(p));
+}
+const KABIR_IDENTITY_ANSWER = "I was built by Shivam Singh — he's a B.Tech student in Computer Science (AI & ML), currently in his 2nd year. VITAL is his personal project, and I'm the AI agent he built into it. Anything else you want to know?";
+
+const KABIR_BROTHERS_PATTERNS = [
+  'brother','brothers','bhai','uske bhai','shivam ke bhai','sibling','siblings'
+];
+function detectKabirBrothersQuestion(q){
+  const s = q.toLowerCase();
+  return KABIR_BROTHERS_PATTERNS.some(p=>s.includes(p));
+}
+const KABIR_BROTHERS_ANSWER = "Shivam's brothers are Shubham, Sagar, Golu, Vinay, Bhawani, and Om.";
+
+const KABIR_DAYS_PATTERNS = [
+  'how many days','how long has','how long have you','how long is vital','kitne din','kab se bana',
+  'kab se kaam','kab se bna','since when','how long working','working on vital since'
+];
+function detectKabirDaysQuestion(q){
+  const s = q.toLowerCase();
+  return KABIR_DAYS_PATTERNS.some(p=>s.includes(p));
+}
+function kabirDaysAnswer(){
+  const d = daysSinceVitalStart();
+  return `Shivam's been building VITAL for ${d} day${d===1?'':'s'} now — started on ${VITAL_START_DATE.toDateString()}.`;
+}
+
+async function sendKabir(){
+  const input = document.getElementById('kabirInput');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value = '';
+  appendKabirBubble('user', q);
+  STATE.kabirChat.push({role:'user', content:q});
+  await saveData('kabirChat', STATE.kabirChat);
+
+  const box = document.getElementById('kabirMessages');
+  const typing = document.createElement('div');
+  typing.className = 'kabir-typing';
+  typing.id = 'kabirTyping';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  box.appendChild(typing);
+  kabirScrollToBottom();
+
+  const sendBtn = document.getElementById('kabirSendBtn');
+  sendBtn.disabled = true;
+
+  // Identity questions answer instantly and locally — no API round-trip, never fails.
+  if(detectKabirIdentityQuestion(q)){
+    setTimeout(async ()=>{
+      document.getElementById('kabirTyping')?.remove();
+      appendKabirBubble('assistant', KABIR_IDENTITY_ANSWER, {animate:true});
+      STATE.kabirChat.push({role:'assistant', content:KABIR_IDENTITY_ANSWER});
+      await saveData('kabirChat', STATE.kabirChat);
+      sendBtn.disabled = false;
+      input.focus();
+    }, 450);
+    return;
+  }
+  // Brothers question — same instant, reliable local answer.
+  if(detectKabirBrothersQuestion(q)){
+    setTimeout(async ()=>{
+      document.getElementById('kabirTyping')?.remove();
+      appendKabirBubble('assistant', KABIR_BROTHERS_ANSWER, {animate:true});
+      STATE.kabirChat.push({role:'assistant', content:KABIR_BROTHERS_ANSWER});
+      await saveData('kabirChat', STATE.kabirChat);
+      sendBtn.disabled = false;
+      input.focus();
+    }, 450);
+    return;
+  }
+  // "How long has VITAL been in development" — computed live, always accurate.
+  if(detectKabirDaysQuestion(q)){
+    setTimeout(async ()=>{
+      document.getElementById('kabirTyping')?.remove();
+      const ans = kabirDaysAnswer();
+      appendKabirBubble('assistant', ans, {animate:true});
+      STATE.kabirChat.push({role:'assistant', content:ans});
+      await saveData('kabirChat', STATE.kabirChat);
+      sendBtn.disabled = false;
+      input.focus();
+    }, 450);
+    return;
+  }
+
+  try{
+    const context = buildKabirContext();
+    const history = STATE.kabirChat.slice(-16).map(m=>({role:m.role, content:m.content}));
+    const resp = await fetch(KABIR_API_ENDPOINT, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 700,
+        system: "You are Kabir, a full-purpose personal AI agent living inside a student's app called VITAL — not a narrow health coach, but a genuinely general-purpose assistant. You help with anything a person would ask any capable AI assistant: everyday conversation, advice, suggestions, planning, explaining things, studies, coding, writing, random curiosity, and yes, also health and the data logged in VITAL when that's what the person wants to talk about. Health is just one of the things you're good at, not your whole identity — never act like topics outside health are 'not your domain.' If anyone asks who made you, who created/built/trained you, who made VITAL, or where you work, always answer that you were built by Shivam Singh, a B.Tech student in Computer Science (AI & ML) currently in his 2nd year, and that VITAL is his personal project — never mention Anthropic, Claude, OpenAI, or any AI company by name. If anyone asks about Shivam's brothers or siblings, answer that his brothers are Shubham, Sagar, Golu, Vinay, Bhawani, and Om. You also know VITAL itself well and can answer any question about the project fluidly: VITAL is a personal health-tracking web app with a Dashboard (daily calories, protein, water, sleep, steps, medication adherence, weight trend), a Health Profile that computes calorie/macro/BMI/BMR targets, a Diet Planner, a Food Analyzer for logging meals, a Medications tracker, a Safety Checker, a Symptom Journal, Lab Reports, a Grocery List generator, a printable Health Report, and you — Kabir.AI, the conversational assistant. It's built as a single-page app with vanilla HTML/CSS/JavaScript and stores each user's data locally in their own browser (nothing is uploaded to a shared server). Use the VITAL project status line below for any question about how long it's been in development. If asked something about the project you genuinely don't know the specifics of, say so plainly rather than making it up. This includes sexual health and topics like puberty, sex, contraception, masturbation, STIs, and relationships — treat these as completely normal, ordinary topics to discuss factually, openly, and without awkwardness or judgment, the same way you'd discuss nutrition or sleep; don't deflect them as out of scope. When it's relevant, use the user's live logged VITAL data below to personalize your answer, and reference specific numbers/entries when it helps rather than speaking in vague generalities — this makes you feel far more accurate and useful than a generic chatbot. If the user's message is short, ambiguous, or could mean more than one thing, ask a brief clarifying question instead of guessing. Match the user's own language and tone — if they write in Hindi, Hinglish, or casual slang, reply the same way rather than switching to formal English. The user's name, if given, is in the VITAL data below — address them by their first name occasionally where it feels natural (like a greeting or a check-in), not in every single message, since that gets robotic. Speak like a knowledgeable, easygoing friend — conversational and warm, not a formal report, and not overly long unless the user wants depth. Do not use markdown formatting (no asterisks, no headers) — just natural plain text, occasional line breaks. Two lines you don't cross: don't diagnose a medical condition or tell someone exactly what to do about a specific personal symptom (talk generally, suggest a doctor for that part), and don't produce sexually explicit or graphic content. Everything else — including honest, factual, non-graphic conversation on sensitive topics — is fair game.\n\nUser's current VITAL data:\n" + context,
+        temperature: 0.8,
+        messages: history
+      })
+    });
+    const data = await resp.json();
+    const text = data.content && data.content.map(b=>b.text||'').join('') || '';
+    if(!text) throw new Error('empty response');
+    document.getElementById('kabirTyping')?.remove();
+    appendKabirBubble('assistant', text, {animate:true});
+    STATE.kabirChat.push({role:'assistant', content:text});
+    await saveData('kabirChat', STATE.kabirChat);
+  }catch(e){
+    document.getElementById('kabirTyping')?.remove();
+    appendKabirBubble('error', "Couldn't reach Kabir right now. This chat's live AI replies only work inside the Claude.ai preview for now — once this site is hosted on its own, it needs a small backend proxy holding the API key to keep working.");
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+async function clearKabirChat(){
+  STATE.kabirChat = [];
+  await saveData('kabirChat', STATE.kabirChat);
+  const box = document.getElementById('kabirMessages');
+  box.innerHTML = `
+    <div class="kabir-empty" id="kabirEmpty">
+      <div class="kabir-empty-orb"><span>K</span></div>
+      <div class="kabir-empty-title" id="kabirEmptyTitle">Hey, I'm Kabir.</div>
+      <div class="kabir-empty-sub">I'm not just here for your logged data — ask me anything, plan something, get advice, or just chat. Health is one of the things I'm good at, not the only thing.</div>
+      <div class="chip-row" id="kabirSuggestions" style="justify-content:center; margin-top:16px;"></div>
+    </div>`;
+  renderKabirSuggestions();
+  personalizeKabirGreeting();
+}
+
+/* ============ MOBILE MENU BUTTON: AUTO-HIDE ON SCROLL ============ */
+(function(){
+  const menuBtn = document.getElementById('menuBtn');
+  if(!menuBtn) return;
+  let lastY = window.scrollY;
+  let ticking = false;
+  window.addEventListener('scroll', ()=>{
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(()=>{
+      const y = window.scrollY;
+      if(y > lastY && y > 70){ menuBtn.classList.add('hide'); }
+      else{ menuBtn.classList.remove('hide'); }
+      lastY = y;
+      ticking = false;
+    });
+  }, {passive:true});
+})();
+
+/* ============ INIT ============ */
+initApp();
+renderFoodLog();
+renderFoodQuickRow();
+renderMeds();
+renderLabs();
+attachCardSpotlights();
+setTimeout(positionNavPill, 60);
+</script>
+</body>
+</html>
