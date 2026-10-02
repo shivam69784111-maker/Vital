@@ -749,6 +749,15 @@ html[data-theme="light"] .loader-overlay{background:rgba(240,243,250,0.65);}
       </div>
       <button class="btn btn-primary" style="margin-top:22px;" onclick="saveProfile()">Save profile &amp; recalculate</button>
       <div id="profileSummary" style="margin-top:26px;"></div>
+      <div class="card" style="margin-top:26px;">
+        <span class="card-tag">Your data</span><div class="card-title">Backup &amp; restore</div>
+        <p style="margin-top:12px; opacity:0.8; font-size:0.9rem; line-height:1.55;">Your data is saved only in this browser. Download a backup file to keep it safe, or to move it to another device. The file contains your health data, so keep it private.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+          <button class="btn btn-primary btn-sm" onclick="backupData()">Download backup</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreFile').click()">Restore from backup</button>
+          <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="restoreData(this)">
+        </div>
+      </div>
     </section>
 
     <!-- ===== DIET PLANNER ===== -->
@@ -1099,6 +1108,51 @@ function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ============ BACKUP & RESTORE ============ */
+const BACKUP_KEYS = ['profile','targets','weightHistory','dailyLogs','foodLogs','meds','medLog','symptoms','labs','dietPlan','kabirChat','meditationLog'];
+function backupData(){
+  try{
+    const data = {};
+    BACKUP_KEYS.forEach(k=>{
+      const raw = localStorage.getItem('vital_'+k);
+      if(raw !== null) data[k] = JSON.parse(raw);
+    });
+    const out = { app:'VITAL', version:1, exportedAt:new Date().toISOString(), data };
+    const blob = new Blob([JSON.stringify(out)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vital-backup-' + todayStr() + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    toast('Backup downloaded');
+  } catch(e){ console.error('backup error', e); toast('Backup failed'); }
+}
+function restoreData(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      let parsed;
+      try{ parsed = JSON.parse(reader.result); } catch(e){ parsed = null; }
+      if(!parsed || parsed.app !== 'VITAL' || !parsed.data || typeof parsed.data !== 'object'){
+        toast('Not a valid VITAL backup file'); input.value = ''; return;
+      }
+      if(!confirm('This will replace the data in this browser with the data from the backup file. Continue?')){ input.value = ''; return; }
+      BACKUP_KEYS.forEach(k=>{
+        if(Object.prototype.hasOwnProperty.call(parsed.data, k)) localStorage.setItem('vital_'+k, JSON.stringify(parsed.data[k]));
+        else localStorage.removeItem('vital_'+k);
+      });
+      toast('Restored. Reloading…');
+      setTimeout(()=>location.reload(), 900);
+    } catch(e){ console.error('restore error', e); toast('Restore failed — storage may be full or blocked'); }
+    input.value = '';
+  };
+  reader.onerror = ()=>{ toast('Could not read the file'); input.value = ''; };
+  reader.readAsText(file);
 }
 
 /* ============ VITALS LOADER ============ */
